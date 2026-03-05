@@ -258,6 +258,22 @@ class ZabbixClient:
     def update_item_prototype(self, itemid: str, **kwargs: Any) -> None:
         self._call("itemprototype.update", {"itemid": itemid, **kwargs})
 
+    def get_trigger_prototypes(self, ruleid: str) -> list[dict[str, Any]]:
+        return self._call("triggerprototype.get", {  # type: ignore[return-value]
+            "discoveryids": [ruleid],
+            "output": [
+                "triggerid", "description", "expression",
+                "priority", "status", "recovery_expression", "manual_close",
+            ],
+        })
+
+    def create_trigger_prototype(self, data: dict[str, Any]) -> str:
+        result = self._call("triggerprototype.create", data)
+        return str(result["triggerids"][0])
+
+    def update_trigger_prototype(self, triggerid: str, **kwargs: Any) -> None:
+        self._call("triggerprototype.update", {"triggerid": triggerid, **kwargs})
+
     # ------------------------------------------------------------------
     # Export helpers
     # ------------------------------------------------------------------

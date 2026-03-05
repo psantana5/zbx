@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from zbx.diff_engine import ChangeType, DiffEngine, TemplateDiff
-from zbx.models import DiscoveryRule, Item, ItemPrototype, Template, Trigger
+from zbx.models import DiscoveryRule, Item, ItemPrototype, ItemType, Template, Trigger, TriggerPrototype
 from zbx.zabbix_client import ZabbixClient
 
 logger = logging.getLogger(__name__)
@@ -220,8 +220,29 @@ class Deployer:
         }
         ruleid = self._client.create_discovery_rule(templateid, data)
         logger.info("  + discovery rule '%s' id=%s", rule.name, ruleid)
+
+        # Create non-dependent prototypes first so their IDs can be resolved
+        key_to_itemid: dict[str, str] = {}
         for proto in rule.item_prototypes:
-            self._create_item_prototype(ruleid, templateid, proto)
+            if proto.type != ItemType.dependent:
+                pid = self._create_item_prototype(ruleid, templateid, proto)
+                key_to_itemid[proto.key] = pid
+
+        # Now create dependent prototypes, injecting master_itemid
+        for proto in rule.item_prototypes:
+            if proto.type == ItemType.dependent:
+                if proto.master_item_key and proto.master_item_key in key_to_itemid:
+                    master_id = key_to_itemid[proto.master_item_key]
+                    self._create_item_prototype(ruleid, templateid, proto, master_itemid=master_id)
+                else:
+                    logger.warning(
+                        "  ⚠ Dependent prototype '%s' references unknown master_item_key '%s' — skipped.",
+                        proto.name,
+                        proto.master_item_key,
+                    )
+
+        for tp in rule.trigger_prototypes:
+            self._create_trigger_prototype(tp)
 
     def _update_discovery_rule(self, ruleid: str, rule: DiscoveryRule) -> None:
         self._client.update_discovery_rule(
@@ -233,19 +254,50 @@ class Deployer:
         logger.info("  ~ discovery rule '%s'", rule.name)
 
     def _create_item_prototype(
-        self, ruleid: str, templateid: str, proto: ItemPrototype
-    ) -> None:
+        self, ruleid: str, templateid: str, proto: ItemPrototype,
+        master_itemid: str | None = None,
+    ) -> str:
         data: dict[str, Any] = {
             "name": proto.name,
             "key_": proto.key,
-            "delay": proto.interval,
+            "delay": proto.interval if proto.type != ItemType.dependent else "0",
             "type": proto.type.zabbix_id,
             "value_type": proto.value_type.zabbix_id,
             "units": proto.units,
             "description": proto.description,
         }
-        self._client.create_item_prototype(ruleid, templateid, data)
-        logger.info("    + prototype '%s'", proto.name)
+        if master_itemid:
+            data["master_itemid"] = master_itemid
+        if proto.preprocessing:
+            data["preprocessing"] = [
+                {
+                    "type": str(p.type.zabbix_id),
+                    "params": p.params,
+                    "error_handler": str(p.error_handler),
+                    "error_handler_params": p.error_handler_params,
+                }
+                for p in proto.preprocessing
+            ]
+        itemid = self._client.create_item_prototype(ruleid, templateid, data)
+        logger.info("    + prototype '%s' id=%s", proto.name, itemid)
+        return itemid
+
+    def _create_trigger_prototype(self, tp: TriggerPrototype) -> None:
+        data: dict[str, Any] = {
+            "description": tp.name,
+            "expression": tp.expression,
+            "priority": tp.severity.zabbix_id,
+            "comments": tp.description,
+            "status": 0 if tp.enabled else 1,
+            "manual_close": 1 if tp.allow_manual_close else 0,
+        }
+        if tp.recovery_expression:
+            data["recovery_mode"] = 1
+            data["recovery_expression"] = tp.recovery_expression
+        if tp.tags:
+            data["tags"] = [{"tag": t.tag, "value": t.value} for t in tp.tags]
+        triggerid = self._client.create_trigger_prototype(data)
+        logger.info("    + trigger prototype '%s' id=%s", tp.name, triggerid)
 
     # ------------------------------------------------------------------
     # Lookup helpers

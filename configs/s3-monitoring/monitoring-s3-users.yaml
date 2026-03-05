@@ -1,0 +1,104 @@
+# S3 User Storage Monitoring Template
+#
+# Prerequisites on zabbixtest3100:
+#   - /usr/local/scripts/zabbix/getS3Storage.py (owned by zabbix:zabbix, executable)
+#   - /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf with:
+#       UserParameter=s3.user.discover,/usr/local/scripts/zabbix/getS3Storage.py
+#       UserParameter=s3.user.metrics[*],/usr/local/scripts/zabbix/getS3Storage.py $1 $2 $3
+#
+# Host macros required on the linked host:
+#   {$S3_USER_PASSWORD}  — S3 user password
+#   {$S3_USER_GROUP}     — S3 user group
+#
+# Test before deploying:
+#   sudo -u zabbix /usr/local/scripts/zabbix/getS3Storage.py
+#   sudo -u zabbix /usr/local/scripts/zabbix/getS3Storage.py user pass group
+#   zabbix_agentd -t s3.user.discover
+#   zabbix_agentd -t s3.user.metrics[user,pass,group]
+#
+# Deploy with:
+#   zbx apply configs/s3-monitoring/
+
+template: monitoring-s3-users
+name: "Monitoring S3 Users"
+description: "Per-user S3 storage monitoring via Low-Level Discovery. Tracks used space, available space and percentage used for every S3 user discovered by the agent script."
+groups:
+  - Templates
+  - Templates/Storage
+
+discovery_rules:
+  - name: S3 Monitoring
+    key: s3.user.discover
+    type: zabbix_agent
+    interval: 12h
+    description: "Discovers all S3 users via the getS3Storage.py script"
+
+    item_prototypes:
+      # ----------------------------------------------------------------
+      # MASTER item — fetches raw JSON for the discovered S3 user.
+      # All dependent items below parse this single API call.
+      # ----------------------------------------------------------------
+      - name: "S3 Storage data for [{#S3USER}]"
+        key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        type: zabbix_agent
+        value_type: text
+        interval: 12h
+        description: "Raw JSON payload from getS3Storage.py for user {#S3USER}"
+
+      # ----------------------------------------------------------------
+      # DEPENDENT items — parse fields out of the master JSON payload.
+      # Each uses a JSONPath preprocessing step.
+      # ----------------------------------------------------------------
+      - name: "S3 Percentage used for [{#S3USER}]"
+        key: "s3.user.percentageused[{#S3USER}]"
+        type: dependent
+        value_type: float
+        master_item_key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        description: "Storage usage percentage for S3 user {#S3USER}"
+        units: "%"
+        preprocessing:
+          - type: jsonpath
+            params: "$.percentageused"
+
+      - name: "S3 Total available size for [{#S3USER}]"
+        key: "s3.user.totalavailablesize[{#S3USER}]"
+        type: dependent
+        value_type: float
+        master_item_key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        description: "Total storage quota available for S3 user {#S3USER}"
+        units: B
+        preprocessing:
+          - type: jsonpath
+            params: "$.totalavailablesize"
+
+      - name: "S3 Used space for [{#S3USER}]"
+        key: "s3.user.usedspace[{#S3USER}]"
+        type: dependent
+        value_type: float
+        master_item_key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        description: "Storage currently consumed by S3 user {#S3USER}"
+        units: B
+        preprocessing:
+          - type: jsonpath
+            params: "$.usedspace"
+
+    trigger_prototypes:
+      # ----------------------------------------------------------------
+      # ALERT: storage usage >= 95% (high severity, manual close)
+      # ----------------------------------------------------------------
+      - name: "High S3 Storage Limit for [{#S3USER}]"
+        expression: "last(/monitoring-s3-users/s3.user.percentageused[{#S3USER}])>=95"
+        recovery_expression: "last(/monitoring-s3-users/s3.user.percentageused[{#S3USER}])<90"
+        severity: high
+        allow_manual_close: true
+        description: "S3 storage usage for {#S3USER} is at or above 95%. Investigate and clean up or expand the quota before it hits 100%."
+
+      # ----------------------------------------------------------------
+      # ALERT: no data received for master item in 24 h
+      # ----------------------------------------------------------------
+      - name: "S3 user {#S3USER} no data (24h)"
+        expression: "count(/monitoring-s3-users/s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}],#2)=0"
+        recovery_expression: "count(/monitoring-s3-users/s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}],#2)>0"
+        severity: warning
+        allow_manual_close: true
+        description: "No metrics received for S3 user {#S3USER} in 24 hours. Check the getS3Storage.py script and Zabbix agent connectivity on zabbixtest3100."

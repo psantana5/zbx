@@ -53,6 +53,7 @@ class ItemType(str, Enum):
     calculated = "calculated"
     http_agent = "http_agent"
     snmp_v2c = "snmp_v2c"
+    dependent = "dependent"
 
     @property
     def zabbix_id(self) -> int:
@@ -65,6 +66,7 @@ class ItemType(str, Enum):
             "calculated": 15,
             "http_agent": 19,
             "snmp_v2c": 4,
+            "dependent": 18,
         }[self.value]
 
     @classmethod
@@ -77,6 +79,7 @@ class ItemType(str, Enum):
             5: cls.zabbix_internal,
             7: cls.zabbix_agent_active,
             15: cls.calculated,
+            18: cls.dependent,
             19: cls.http_agent,
         }.get(value, cls.zabbix_agent)
 
@@ -119,6 +122,35 @@ class Tag(BaseModel):
     value: str = ""
 
 
+class PreprocessingType(str, Enum):
+    jsonpath = "jsonpath"
+    regex = "regex"
+    multiplier = "multiplier"
+    trim = "trim"
+    not_match_regex = "not_match_regex"
+    check_not_supported = "check_not_supported"
+    discard_unchanged = "discard_unchanged"
+
+    @property
+    def zabbix_id(self) -> int:
+        return {
+            "jsonpath": 12,
+            "regex": 5,
+            "multiplier": 1,
+            "trim": 17,
+            "not_match_regex": 8,
+            "check_not_supported": 11,
+            "discard_unchanged": 19,
+        }[self.value]
+
+
+class Preprocessing(BaseModel):
+    type: PreprocessingType
+    params: str = ""
+    error_handler: int = 0
+    error_handler_params: str = ""
+
+
 class Item(BaseModel):
     name: str
     key: str
@@ -143,6 +175,22 @@ class ItemPrototype(BaseModel):
     value_type: ItemValueType = ItemValueType.float
     units: str = ""
     description: str = ""
+    # For dependent items: key of the master item prototype in the same rule
+    master_item_key: Optional[str] = None
+    preprocessing: list[Preprocessing] = Field(default_factory=list)
+
+
+class TriggerPrototype(BaseModel):
+    """Trigger prototype inside a Low-Level Discovery rule."""
+
+    name: str
+    expression: str
+    severity: TriggerSeverity = TriggerSeverity.average
+    recovery_expression: str = ""
+    description: str = ""
+    allow_manual_close: bool = False
+    enabled: bool = True
+    tags: list[Tag] = Field(default_factory=list)
 
 
 class DiscoveryRule(BaseModel):
@@ -152,6 +200,7 @@ class DiscoveryRule(BaseModel):
     type: ItemType = ItemType.zabbix_agent
     description: str = ""
     item_prototypes: list[ItemPrototype] = Field(default_factory=list)
+    trigger_prototypes: list[TriggerPrototype] = Field(default_factory=list)
 
 
 class Trigger(BaseModel):
