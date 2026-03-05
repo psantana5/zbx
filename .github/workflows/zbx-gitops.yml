@@ -124,6 +124,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check Zabbix connectivity
+        run: |
+          ZBX_URL="${{ secrets.ZBX_URL }}"
+          if [ -z "$ZBX_URL" ]; then
+            echo "::error::ZBX_URL secret is not set. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+          HOST=$(echo "$ZBX_URL" | sed 's|https\?://||' | cut -d'/' -f1 | cut -d':' -f1)
+          PORT=$(echo "$ZBX_URL" | grep -oP ':\K[0-9]+' || echo "80")
+          echo "Testing connectivity to $HOST:$PORT ..."
+          if ! timeout 5 bash -c "echo >/dev/tcp/$HOST/$PORT" 2>/dev/null; then
+            echo "::error::Cannot reach Zabbix at $ZBX_URL from this runner."
+            echo "::error::If Zabbix is on a private network, use a self-hosted runner:"
+            echo "::error::  https://docs.github.com/en/actions/hosting-your-own-runners"
+            exit 1
+          fi
+          echo "✓ Zabbix is reachable"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
