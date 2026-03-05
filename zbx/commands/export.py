@@ -83,7 +83,7 @@ def export_cmd(
         output.write_text(yaml_text)
         console.print(f"[green]ok Exported '{template.template}' to {output}[/green]")
     else:
-        console.print(yaml_text)
+        print(yaml_text, end="")
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +115,7 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
             name=t["description"],
             expression=t["expression"],
             severity=TriggerSeverity.from_zabbix_id(int(t.get("priority", 0))),
+            recovery_expression=t.get("recovery_expression", ""),
             description=t.get("comments", ""),
             enabled=t.get("status", "0") == "0",
         )
@@ -193,6 +194,8 @@ def _template_to_yaml(template: Template) -> str:
 
     def _trigger_dict(t: Trigger) -> dict:  # type: ignore[type-arg]
         d: dict = {"name": t.name, "expression": t.expression, "severity": t.severity.value}  # type: ignore[type-arg]
+        if t.recovery_expression:
+            d["recovery_expression"] = t.recovery_expression
         if t.description:
             d["description"] = t.description
         if not t.enabled:

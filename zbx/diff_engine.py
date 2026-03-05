@@ -272,6 +272,7 @@ class DiffEngine:
             TriggerSeverity.from_zabbix_id(int(current.get("priority", 0))).value,
             desired.severity.value,
         )
+        _chk(changes, "recovery_expression", current.get("recovery_expression", ""), desired.recovery_expression)
         _chk(changes, "description", current.get("comments", ""), desired.description)
         current_enabled = current.get("status", "0") == "0"
         _chk(changes, "enabled", current_enabled, desired.enabled)

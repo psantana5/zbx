@@ -112,18 +112,19 @@ class ConfigLoader:
     def _load_file(self, path: Path) -> tuple[list[Template], list[Host]]:
         try:
             with path.open() as fh:
-                raw = yaml.safe_load(fh)
+                docs = list(yaml.safe_load_all(fh))
         except yaml.YAMLError as exc:
             raise ValueError(f"Invalid YAML in {path}: {exc}") from exc
 
-        if raw is None:
+        # Filter out empty documents (e.g. trailing ---)
+        docs = [d for d in docs if d is not None]
+        if not docs:
             return [], []
 
-        documents = raw if isinstance(raw, list) else [raw]
         templates: list[Template] = []
         hosts: list[Host] = []
 
-        for idx, doc in enumerate(documents):
+        for idx, doc in enumerate(docs):
             if not isinstance(doc, dict):
                 raise ValueError(
                     f"Expected a mapping at document index {idx} in {path}, "

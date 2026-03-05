@@ -43,17 +43,33 @@ class TriggerSeverity(str, Enum):
             5: cls.disaster,
         }.get(value, cls.not_classified)
 
+    @classmethod
+    def _missing_(cls, value: object) -> "TriggerSeverity | None":
+        # Accept common aliases
+        aliases = {"info": cls.information}
+        return aliases.get(str(value).lower())
+
 
 class ItemType(str, Enum):
     zabbix_agent = "zabbix_agent"
     zabbix_trapper = "zabbix_trapper"
     simple_check = "simple_check"
+    snmp_v1 = "snmp_v1"
     zabbix_internal = "zabbix_internal"
-    zabbix_agent_active = "zabbix_agent_active"
-    calculated = "calculated"
-    http_agent = "http_agent"
     snmp_v2c = "snmp_v2c"
+    snmp_v3 = "snmp_v3"
+    zabbix_agent_active = "zabbix_agent_active"
+    telnet_agent = "telnet_agent"
+    ipmi_agent = "ipmi_agent"
+    ssh_agent = "ssh_agent"
+    db_monitor = "db_monitor"
+    calculated = "calculated"
+    jmx_agent = "jmx_agent"
+    snmp_trap = "snmp_trap"
     dependent = "dependent"
+    http_agent = "http_agent"
+    external = "external"
+    script = "script"
 
     @property
     def zabbix_id(self) -> int:
@@ -61,26 +77,46 @@ class ItemType(str, Enum):
             "zabbix_agent": 0,
             "zabbix_trapper": 2,
             "simple_check": 3,
+            "snmp_v1": 1,
             "zabbix_internal": 5,
-            "zabbix_agent_active": 7,
-            "calculated": 15,
-            "http_agent": 19,
             "snmp_v2c": 4,
+            "snmp_v3": 6,
+            "zabbix_agent_active": 7,
+            "telnet_agent": 14,
+            "ipmi_agent": 12,
+            "ssh_agent": 13,
+            "db_monitor": 11,
+            "calculated": 15,
+            "jmx_agent": 16,
+            "snmp_trap": 17,
             "dependent": 18,
+            "http_agent": 19,
+            "external": 10,
+            "script": 21,
         }[self.value]
 
     @classmethod
     def from_zabbix_id(cls, value: int) -> ItemType:
         return {
             0: cls.zabbix_agent,
+            1: cls.snmp_v1,
             2: cls.zabbix_trapper,
             3: cls.simple_check,
             4: cls.snmp_v2c,
             5: cls.zabbix_internal,
+            6: cls.snmp_v3,
             7: cls.zabbix_agent_active,
+            10: cls.external,
+            11: cls.db_monitor,
+            12: cls.ipmi_agent,
+            13: cls.ssh_agent,
+            14: cls.telnet_agent,
             15: cls.calculated,
+            16: cls.jmx_agent,
+            17: cls.snmp_trap,
             18: cls.dependent,
             19: cls.http_agent,
+            21: cls.script,
         }.get(value, cls.zabbix_agent)
 
 
@@ -160,6 +196,7 @@ class Item(BaseModel):
     units: str = ""
     description: str = ""
     params: str = ""   # formula for calculated items; OID for SNMP; empty otherwise
+    url: Optional[str] = None   # required for http_agent type
     tags: list[Tag] = Field(default_factory=list)
     history: str = "90d"
     trends: str = "365d"
@@ -208,6 +245,7 @@ class Trigger(BaseModel):
     name: str
     expression: str
     severity: TriggerSeverity = TriggerSeverity.average
+    recovery_expression: str = ""
     description: str = ""
     enabled: bool = True
     tags: list[Tag] = Field(default_factory=list)

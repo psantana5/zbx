@@ -263,13 +263,14 @@ class Deployer:
         }
         if item.tags:
             data["tags"] = [{"tag": t.tag, "value": t.value} for t in item.tags]
+        if item.url is not None:
+            data["url"] = item.url
         itemid = self._client.create_item(templateid, data)
         logger.info("  + item '%s' (%s) id=%s", item.name, item.key, itemid)
 
     def _update_item(self, itemid: str, item: Item) -> None:
         _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
-        self._client.update_item(
-            itemid,
+        kwargs: dict[str, Any] = dict(
             name=item.name,
             delay=item.interval,
             type=item.type.zabbix_id,
@@ -281,6 +282,9 @@ class Deployer:
             status=0 if item.enabled else 1,
             params=item.params,
         )
+        if item.url is not None:
+            kwargs["url"] = item.url
+        self._client.update_item(itemid, **kwargs)
         logger.info("  ~ item '%s' (%s)", item.name, item.key)
 
     # ------------------------------------------------------------------
@@ -308,20 +312,29 @@ class Deployer:
             "comments": trigger.description,
             "status": 0 if trigger.enabled else 1,
         }
+        if trigger.recovery_expression:
+            data["recovery_mode"] = 1
+            data["recovery_expression"] = trigger.recovery_expression
         if trigger.tags:
             data["tags"] = [{"tag": t.tag, "value": t.value} for t in trigger.tags]
         triggerid = self._client.create_trigger(data)
         logger.info("  + trigger '%s' id=%s", trigger.name, triggerid)
 
     def _update_trigger(self, triggerid: str, trigger: Trigger) -> None:
-        self._client.update_trigger(
-            triggerid,
+        kwargs: dict[str, Any] = dict(
             description=trigger.name,
             expression=trigger.expression,
             priority=trigger.severity.zabbix_id,
             comments=trigger.description,
             status=0 if trigger.enabled else 1,
         )
+        if trigger.recovery_expression:
+            kwargs["recovery_mode"] = 1
+            kwargs["recovery_expression"] = trigger.recovery_expression
+        else:
+            kwargs["recovery_mode"] = 0
+            kwargs["recovery_expression"] = ""
+        self._client.update_trigger(triggerid, **kwargs)
         logger.info("  ~ trigger '%s'", trigger.name)
 
     # ------------------------------------------------------------------

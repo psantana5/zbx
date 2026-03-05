@@ -263,7 +263,8 @@ class ZabbixClient:
         # Fetch triggers with expandExpression so expressions are human-readable
         tmpl["triggers"] = self._call("trigger.get", {
             "templateids": [tmpl["templateid"]],
-            "output": ["triggerid", "description", "expression", "priority", "status", "comments"],
+            "output": ["triggerid", "description", "expression", "recovery_expression",
+                       "recovery_mode", "priority", "status", "comments"],
             "expandExpression": True,
             "inherited": False,
         })
