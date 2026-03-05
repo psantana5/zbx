@@ -72,6 +72,41 @@ def _find_host(inventory_path: Path, hostname: str):
     )
 
 
+def _load_check_agent(check_path: Path):
+    """Load the agent: block from a check.yaml file, if present."""
+    check_yaml = check_path / "check.yaml" if check_path.is_dir() else check_path
+    if not check_yaml.exists():
+        rprint(f"[red]fail[/red] check.yaml not found at: {check_yaml}")
+        raise typer.Exit(1)
+    templates = _loader.load_templates(check_yaml)
+    if not templates or templates[0].agent is None:
+        rprint(f"[yellow]![/yellow]  No [bold]agent:[/bold] block in {check_yaml} — nothing to deploy.")
+        raise typer.Exit(0)
+    return templates[0].agent
+
+
+def _merge_agent(base, check_agent):
+    """Return a copy of *base* AgentConfig with check's scripts/userparameters merged in."""
+    from copy import deepcopy  # noqa: PLC0415
+    merged = deepcopy(base)
+    # Append scripts that are not already listed (by dest path)
+    existing_dests = {s.dest for s in merged.scripts}
+    for s in check_agent.scripts:
+        if s.dest not in existing_dests:
+            merged.scripts.append(s)
+    # Append userparameter files that are not already listed (by remote_path)
+    existing_upaths = {u.remote_path for u in merged.userparameters}
+    for u in check_agent.userparameters:
+        if u.remote_path not in existing_upaths:
+            merged.userparameters.append(u)
+    # Add test keys that are not already present
+    existing_keys = set(merged.test_keys)
+    for k in check_agent.test_keys:
+        if k not in existing_keys:
+            merged.test_keys.append(k)
+    return merged
+
+
 def _print_diff(d: AgentDiff) -> None:
     if not d.has_changes:
         rprint("[green]OK[/green] Agent is up-to-date — no changes needed.")
@@ -105,6 +140,7 @@ def _print_diff(d: AgentDiff) -> None:
 def agent_diff_cmd(
     hostname: HostArg,
     inventory: Annotated[Path, typer.Option("--inventory", "-i", help="Path to inventory YAML.")] = Path("inventory.yaml"),
+    from_check: Annotated[Optional[Path], typer.Option("--from-check", help="Merge scripts/userparameters from a check folder.")] = None,
 ) -> None:
     """Show what would change on the host agent without applying anything."""
     inv_host = _find_host(inventory, hostname)
@@ -113,6 +149,8 @@ def agent_diff_cmd(
         raise typer.Exit(0)
 
     cfg = inv_host.agent
+    if from_check is not None:
+        cfg = _merge_agent(cfg, _load_check_agent(from_check))
     repo_root = Path.cwd()
 
     rprint(f"\n[bold]Agent diff for [cyan]{hostname}[/cyan] ({inv_host.ip})[/bold]\n")
@@ -140,6 +178,7 @@ def agent_deploy_cmd(
     inventory: Annotated[Path, typer.Option("--inventory", "-i", help="Path to inventory YAML.")] = Path("inventory.yaml"),
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview without applying.")] = False,
     auto_approve: Annotated[bool, typer.Option("--auto-approve", "-y", help="Skip confirmation.")] = False,
+    from_check: Annotated[Optional[Path], typer.Option("--from-check", help="Merge scripts/userparameters from a check folder.")] = None,
 ) -> None:
     """Deploy scripts and UserParameters to the host via SSH."""
     inv_host = _find_host(inventory, hostname)
@@ -149,6 +188,8 @@ def agent_deploy_cmd(
         raise typer.Exit(0)
 
     cfg = inv_host.agent
+    if from_check is not None:
+        cfg = _merge_agent(cfg, _load_check_agent(from_check))
     repo_root = Path.cwd()
 
     rprint(f"\n[bold]Agent deploy → [cyan]{hostname}[/cyan] ({inv_host.ip})[/bold]\n")
@@ -217,6 +258,7 @@ def agent_test_cmd(
         Optional[list[str]],
         typer.Option("--key", "-k", help="Extra keys to test (in addition to inventory config)."),
     ] = None,
+    from_check: Annotated[Optional[Path], typer.Option("--from-check", help="Also test keys defined in a check folder.")] = None,
 ) -> None:
     """Run zabbix_agentd -t for each key defined in the inventory agent config."""
     inv_host = _find_host(inventory, hostname)
@@ -225,6 +267,8 @@ def agent_test_cmd(
         raise typer.Exit(0)
 
     cfg = inv_host.agent
+    if from_check is not None:
+        cfg = _merge_agent(cfg, _load_check_agent(from_check))
     keys_to_test = list(dict.fromkeys(list(cfg.test_keys) + list(key or [])))
     if not keys_to_test:
         rprint("[yellow]![/yellow]  No test_keys configured. Use --key <key> to test ad-hoc.")

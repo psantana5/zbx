@@ -221,6 +221,10 @@ class Template(BaseModel):
     items: list[Item] = Field(default_factory=list)
     triggers: list[Trigger] = Field(default_factory=list)
     discovery_rules: list[DiscoveryRule] = Field(default_factory=list)
+    # Optional agent deployment block — used by checks in configs/checks/<name>/check.yaml
+    # to bundle script deployment info alongside the Zabbix template definition.
+    # Ignored by `zbx apply`; consumed by `zbx agent deploy --from-check <path>`.
+    agent: Optional["AgentConfig"] = None
 
     @property
     def display_name(self) -> str:
