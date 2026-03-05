@@ -174,14 +174,24 @@ def inventory_apply(
                     console.print(f"[green]  + created host '{entry.host}' (id={hid})[/green]")
                     created += 1
                 else:
-                    # Update groups and status if changed
+                    # Update groups, templates and status if changed
                     cur_groups = {g["groupid"] for g in cur.get("groups", [])}
-                    if set(group_ids) != cur_groups or str(entry.status.zabbix_id) != str(cur.get("status", "0")):
-                        client._call("host.update", {  # noqa: SLF001
+                    cur_templates = {t["host"] for t in cur.get("parentTemplates", [])}
+                    if (
+                        set(group_ids) != cur_groups
+                        or set(entry.templates) != cur_templates
+                        or str(entry.status.zabbix_id) != str(cur.get("status", "0"))
+                    ):
+                        update_payload: dict = {
                             "hostid": cur["hostid"],
                             "groups": [{"groupid": gid} for gid in group_ids],
                             "status": entry.status.zabbix_id,
-                        })
+                        }
+                        if template_ids:
+                            update_payload["templates"] = [
+                                {"templateid": tid} for tid in template_ids
+                            ]
+                        client._call("host.update", update_payload)  # noqa: SLF001
                         console.print(f"[yellow]  ~ updated host '{entry.host}'[/yellow]")
                         updated += 1
     except ZabbixAPIError as exc:
@@ -205,9 +215,14 @@ def _compute_inventory_diff(
             changes.append({"action": "create", "entry": entry})
         else:
             cur_groups = {g["name"] for g in cur.get("groups", [])}
+            cur_templates = {t["host"] for t in cur.get("parentTemplates", [])}
             desired_groups = set(entry.groups)
-            if cur_groups != desired_groups or \
-               str(entry.status.zabbix_id) != str(cur.get("status", "0")):
+            desired_templates = set(entry.templates)
+            if (
+                cur_groups != desired_groups
+                or cur_templates != desired_templates
+                or str(entry.status.zabbix_id) != str(cur.get("status", "0"))
+            ):
                 changes.append({"action": "update", "entry": entry, "current": cur})
             else:
                 changes.append({"action": "ok", "entry": entry})
@@ -223,9 +238,27 @@ def _print_inventory_diff(changes: list[dict]) -> None:
                 f"  [dim]{entry.ip}:{entry.port}  groups={', '.join(entry.groups)}[/dim]"
             )
         elif c["action"] == "update":
+            cur = c.get("current", {})
+            cur_templates = {t["host"] for t in cur.get("parentTemplates", [])}
+            desired_templates = set(entry.templates)
+            parts = []
+            cur_groups = {g["name"] for g in cur.get("groups", [])}
+            if cur_groups != set(entry.groups):
+                parts.append("groups")
+            if cur_templates != desired_templates:
+                added = desired_templates - cur_templates
+                removed = cur_templates - desired_templates
+                tmpl_desc = []
+                if added:
+                    tmpl_desc.append(f"+{', '.join(sorted(added))}")
+                if removed:
+                    tmpl_desc.append(f"-{', '.join(sorted(removed))}")
+                parts.append(f"templates ({'; '.join(tmpl_desc)})")
+            if str(entry.status.zabbix_id) != str(cur.get("status", "0")):
+                parts.append("status")
             console.print(
                 f"[bold yellow]  ~ host: {entry.host}[/bold yellow]"
-                f"  [dim](groups or status changed)[/dim]"
+                f"  [dim]({', '.join(parts) or 'changed'})[/dim]"
             )
     ok = sum(1 for c in changes if c["action"] == "ok")
     add = sum(1 for c in changes if c["action"] == "create")

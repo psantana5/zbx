@@ -34,6 +34,8 @@ hosts:
     groups:
       - Linux servers
       - S3 Monitoring
+    templates:
+      - system-health
     description: "Primary S3 monitoring test host"
     status: enabled
 

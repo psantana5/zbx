@@ -1,0 +1,260 @@
+# system-health check
+#
+# Monitors core system health metrics using only built-in Zabbix agent keys —
+# no external scripts required.  Covers:
+#   - CPU load (1/5/15 min averages)
+#   - Memory (total, available, used %)
+#   - Root disk space
+#   - System uptime
+#   - Zabbix agent process count
+#   - Filesystem LLD with low-disk-space trigger prototypes
+#
+# Deploy:
+#   zbx validate configs/checks/system-health/
+#   zbx plan    configs/checks/system-health/
+#   zbx apply   configs/checks/system-health/
+#
+# Then link to a host via inventory.yaml (templates: [system-health])
+
+template: system-health
+name: "System Health"
+description: "Core system health: CPU load, memory, disk, uptime, agent watchdog"
+groups:
+  - Templates
+  - Templates/Linux
+
+items:
+  # ── CPU ──────────────────────────────────────────────────────────────────
+  - name: CPU load average (1 min)
+    key: system.cpu.load[all,avg1]
+    interval: 60s
+    value_type: float
+    description: "1-minute CPU load average (all CPUs)"
+    tags:
+      - tag: component
+        value: cpu
+
+  - name: CPU load average (5 min)
+    key: system.cpu.load[all,avg5]
+    interval: 60s
+    value_type: float
+    description: "5-minute CPU load average (all CPUs)"
+    tags:
+      - tag: component
+        value: cpu
+
+  - name: CPU load average (15 min)
+    key: system.cpu.load[all,avg15]
+    interval: 60s
+    value_type: float
+    description: "15-minute CPU load average (all CPUs)"
+    tags:
+      - tag: component
+        value: cpu
+
+  - name: Number of CPU cores
+    key: system.cpu.num
+    interval: 3600s
+    value_type: unsigned
+    description: "Total number of CPU cores/threads"
+    tags:
+      - tag: component
+        value: cpu
+
+  # ── Memory ───────────────────────────────────────────────────────────────
+  - name: Total memory
+    key: vm.memory.size[total]
+    interval: 3600s
+    value_type: unsigned
+    units: B
+    description: "Total physical memory installed"
+    tags:
+      - tag: component
+        value: memory
+
+  - name: Available memory
+    key: vm.memory.size[available]
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Memory available to new processes (free + buffers + cache)"
+    tags:
+      - tag: component
+        value: memory
+
+  - name: Used memory
+    key: vm.memory.size[used]
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Memory actively in use"
+    tags:
+      - tag: component
+        value: memory
+
+  # ── Disk (root) ───────────────────────────────────────────────────────────
+  - name: "Root filesystem: free bytes"
+    key: "vfs.fs.size[/,free]"
+    interval: 5m
+    value_type: unsigned
+    units: B
+    description: "Free space on root filesystem"
+    tags:
+      - tag: component
+        value: storage
+
+  - name: "Root filesystem: total bytes"
+    key: "vfs.fs.size[/,total]"
+    interval: 3600s
+    value_type: unsigned
+    units: B
+    tags:
+      - tag: component
+        value: storage
+
+  - name: "Root filesystem: % free"
+    key: "vfs.fs.size[/,pfree]"
+    interval: 5m
+    value_type: float
+    units: "%"
+    description: "Percentage of free space on root filesystem"
+    tags:
+      - tag: component
+        value: storage
+
+  # ── System ────────────────────────────────────────────────────────────────
+  - name: System uptime
+    key: system.uptime
+    interval: 600s
+    value_type: unsigned
+    units: uptime
+    description: "Time since last reboot"
+    tags:
+      - tag: component
+        value: system
+
+  - name: Hostname
+    key: system.hostname
+    interval: 3600s
+    value_type: char
+    description: "OS-level hostname"
+    tags:
+      - tag: component
+        value: system
+
+  - name: Zabbix agent process count
+    key: "proc.num[zabbix_agentd]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of running zabbix_agentd processes (agent watchdog)"
+    tags:
+      - tag: component
+        value: monitoring
+
+triggers:
+  # ── CPU load ──────────────────────────────────────────────────────────────
+  - name: "High CPU load (5 min avg > 2× CPU count for 10 min)"
+    expression: "avg(/system-health/system.cpu.load[all,avg5],10m) > 28"
+    severity: high
+    description: "CPU load average has been very high. Check for runaway processes."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: "CPU load warning (5 min avg > CPU count for 15 min)"
+    expression: "avg(/system-health/system.cpu.load[all,avg5],15m) > 14"
+    severity: warning
+    description: "CPU load is consistently above the number of CPU cores."
+    tags:
+      - tag: scope
+        value: performance
+
+  # ── Memory ────────────────────────────────────────────────────────────────
+  - name: "Low available memory (< 512 MB)"
+    expression: "last(/system-health/vm.memory.size[available]) < 536870912"
+    severity: average
+    description: "Less than 512 MB of memory is available to new processes."
+    tags:
+      - tag: scope
+        value: memory
+
+  - name: "Critical: available memory < 128 MB"
+    expression: "last(/system-health/vm.memory.size[available]) < 134217728"
+    severity: high
+    description: "System is critically low on memory. OOM killer may activate."
+    tags:
+      - tag: scope
+        value: memory
+
+  # ── Disk ──────────────────────────────────────────────────────────────────
+  - name: "Root disk: less than 10% free"
+    expression: "last(/system-health/vfs.fs.size[/,pfree]) < 10"
+    severity: average
+    description: "Root filesystem is running low on space."
+    tags:
+      - tag: scope
+        value: storage
+
+  - name: "Root disk: less than 5% free (critical)"
+    expression: "last(/system-health/vfs.fs.size[/,pfree]) < 5"
+    severity: high
+    description: "Root filesystem is critically low. Services may fail."
+    tags:
+      - tag: scope
+        value: storage
+
+  # ── Agent watchdog ────────────────────────────────────────────────────────
+  - name: "Zabbix agent not running"
+    expression: "last(/system-health/proc.num[zabbix_agentd]) < 1"
+    severity: high
+    description: "No zabbix_agentd processes detected. Monitoring is blind."
+    tags:
+      - tag: scope
+        value: monitoring
+
+  # ── System ────────────────────────────────────────────────────────────────
+  - name: "Host has rebooted (uptime < 10 min)"
+    expression: "last(/system-health/system.uptime) < 600"
+    severity: information
+    description: "The host was recently rebooted."
+    tags:
+      - tag: scope
+        value: availability
+
+discovery_rules:
+  - name: Filesystem discovery
+    key: vfs.fs.discovery
+    interval: 1h
+    description: "Auto-discover local filesystems and monitor free space"
+    filter:
+      - macro: "{#FSTYPE}"
+        value: "ext[234]|xfs|btrfs"
+    item_prototypes:
+      - name: "{#FSNAME}: free space"
+        key: "vfs.fs.size[{#FSNAME},free]"
+        interval: 5m
+        value_type: unsigned
+        units: B
+        tags:
+          - tag: component
+            value: storage
+
+      - name: "{#FSNAME}: % free"
+        key: "vfs.fs.size[{#FSNAME},pfree]"
+        interval: 5m
+        value_type: float
+        units: "%"
+        tags:
+          - tag: component
+            value: storage
+
+    trigger_prototypes:
+      - name: "{#FSNAME}: disk space below 10%"
+        expression: "last(/system-health/vfs.fs.size[{#FSNAME},pfree]) < 10"
+        severity: average
+        description: "Filesystem {#FSNAME} has less than 10% free space."
+
+      - name: "{#FSNAME}: disk space below 5% (critical)"
+        expression: "last(/system-health/vfs.fs.size[{#FSNAME},pfree]) < 5"
+        severity: high
+        description: "Filesystem {#FSNAME} is critically low on space."

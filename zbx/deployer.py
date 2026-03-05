@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from zbx.diff_engine import ChangeType, DiffEngine, TemplateDiff
-from zbx.models import DiscoveryRule, Host, HostMacro, Item, ItemPrototype, ItemType, Template, Trigger, TriggerPrototype
+from zbx.models import DiscoveryRule, Host, HostMacro, Item, ItemPrototype, ItemType, ItemValueType, Template, Trigger, TriggerPrototype
 from zbx.zabbix_client import ZabbixClient
 
 logger = logging.getLogger(__name__)
@@ -246,6 +246,8 @@ class Deployer:
             )
 
     def _create_item(self, templateid: str, item: Item) -> None:
+        # char/log/text value types cannot store trends in Zabbix
+        _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
         data: dict[str, Any] = {
             "name": item.name,
             "key_": item.key,
@@ -255,7 +257,7 @@ class Deployer:
             "units": item.units,
             "description": item.description,
             "history": item.history,
-            "trends": item.trends,
+            "trends": "0" if item.value_type in _no_trends else item.trends,
             "status": 0 if item.enabled else 1,
             "params": item.params,
         }
@@ -265,6 +267,7 @@ class Deployer:
         logger.info("  + item '%s' (%s) id=%s", item.name, item.key, itemid)
 
     def _update_item(self, itemid: str, item: Item) -> None:
+        _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
         self._client.update_item(
             itemid,
             name=item.name,
@@ -274,7 +277,7 @@ class Deployer:
             units=item.units,
             description=item.description,
             history=item.history,
-            trends=item.trends,
+            trends="0" if item.value_type in _no_trends else item.trends,
             status=0 if item.enabled else 1,
             params=item.params,
         )
