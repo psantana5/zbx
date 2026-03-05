@@ -58,7 +58,7 @@ class Deployer:
     # ------------------------------------------------------------------
 
     def _create_template(self, template: Template) -> None:
-        group_ids = [self._client.ensure_hostgroup(g) for g in template.groups]
+        group_ids = [self._client.ensure_templategroup(g) for g in template.groups]
         templateid = self._client.create_template(
             host=template.template,
             name=template.display_name,

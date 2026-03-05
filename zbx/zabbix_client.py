@@ -152,6 +152,39 @@ class ZabbixClient:
         return gid
 
     # ------------------------------------------------------------------
+    # Template groups (Zabbix >= 6.2 split template groups from host groups)
+    # ------------------------------------------------------------------
+
+    def get_templategroup(self, name: str) -> dict[str, Any] | None:
+        """Look up a template group by name. Returns None on older Zabbix (<6.2)."""
+        try:
+            results = self._call("templategroup.get", {
+                "filter": {"name": [name]},
+                "output": ["groupid", "name"],
+            })
+            return results[0] if results else None
+        except ZabbixAPIError:
+            # API doesn't exist on Zabbix < 6.2 — caller should fall back to hostgroup
+            return None
+
+    def ensure_templategroup(self, name: str) -> str:
+        """Return the groupid for template group *name*, creating it if needed.
+
+        On Zabbix >= 6.2 uses templategroup.*; falls back to hostgroup.* on
+        older versions so the client works across all supported Zabbix releases.
+        """
+        if self._version >= (6, 2):
+            group = self.get_templategroup(name)
+            if group:
+                return str(group["groupid"])
+            result = self._call("templategroup.create", {"name": name})
+            gid = str(result["groupids"][0])
+            logger.info("Created template group '%s' (id=%s)", name, gid)
+            return gid
+        # Fallback for Zabbix < 6.2
+        return self.ensure_hostgroup(name)
+
+    # ------------------------------------------------------------------
     # Templates
     # ------------------------------------------------------------------
 
