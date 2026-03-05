@@ -379,6 +379,58 @@ class ZabbixClient:
         })
 
     # ------------------------------------------------------------------
+    # Global macros (usermacro.get with globalmacro=True)
+    # ------------------------------------------------------------------
+
+    def list_global_macros(self) -> list[dict[str, Any]]:
+        """Return all global macros."""
+        return self._call("usermacro.get", {  # type: ignore[return-value]
+            "globalmacro": True,
+            "output": ["globalmacroid", "macro", "value", "description"],
+        })
+
+    def get_global_macro(self, macro: str) -> dict[str, Any] | None:
+        results = self._call("usermacro.get", {
+            "globalmacro": True,
+            "filter": {"macro": [macro]},
+            "output": ["globalmacroid", "macro", "value", "description"],
+        })
+        return results[0] if results else None
+
+    def create_global_macro(self, macro: str, value: str, description: str = "") -> str:
+        result = self._call("usermacro.createglobal", {
+            "macro": macro,
+            "value": value,
+            "description": description,
+        })
+        return str(result["globalmacroids"][0])
+
+    def update_global_macro(
+        self, globalmacroid: str, value: str, description: str = ""
+    ) -> None:
+        self._call("usermacro.updateglobal", {
+            "globalmacroid": globalmacroid,
+            "value": value,
+            "description": description,
+        })
+
+    def delete_global_macro(self, globalmacroid: str) -> None:
+        self._call("usermacro.deleteglobal", [globalmacroid])
+
+    # ------------------------------------------------------------------
+    # Host groups — list all
+    # ------------------------------------------------------------------
+
+    def list_hostgroups(self) -> list[dict[str, Any]]:
+        """Return all host groups."""
+        return self._call("hostgroup.get", {  # type: ignore[return-value]
+            "output": ["groupid", "name"],
+        })
+
+    def delete_hostgroup(self, groupid: str) -> None:
+        self._call("hostgroup.delete", [groupid])
+
+    # ------------------------------------------------------------------
     # Items
     # ------------------------------------------------------------------
 

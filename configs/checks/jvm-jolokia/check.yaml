@@ -1,0 +1,146 @@
+# jvm-jolokia check
+#
+# Monitors JVM heap, GC, threads and loaded classes
+# via the Jolokia REST API (http://host:8778/jolokia).
+#
+# Deploy the script first:
+#   sudo cp scripts/check_jvm_jolokia.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_jvm_jolokia.py
+#
+# Add to Zabbix agent config:
+#   UserParameter=jvm.jolokia[*],python3 /usr/local/zbx/scripts/check_jvm_jolokia.py $1
+#
+# Deploy:
+#   zbx apply configs/checks/jvm-jolokia/
+
+template: jvm-jolokia
+name: "JVM (Jolokia)"
+description: "JVM monitoring via Jolokia REST API (http://host:8778/jolokia)"
+groups:
+  - Templates/Applications
+
+items:
+  - name: JVM ping
+    key: "jvm.jolokia[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 if Jolokia is reachable at http://localhost:8778/jolokia/, 0 otherwise"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: Heap memory used (MB)
+    key: "jvm.jolokia[heap.used]"
+    interval: 60s
+    value_type: unsigned
+    units: MB
+    description: "JVM heap memory currently used in MB"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: Heap memory max (MB)
+    key: "jvm.jolokia[heap.max]"
+    interval: 60s
+    value_type: unsigned
+    units: MB
+    description: "Maximum JVM heap memory configured in MB"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: Heap memory usage (%)
+    key: "jvm.jolokia[heap.usage_pct]"
+    interval: 60s
+    value_type: float
+    units: "%"
+    description: "JVM heap usage as a percentage of max heap"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: GC old gen count
+    key: "jvm.jolokia[gc.old.count]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total old-generation GC collection count"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: GC old gen time (ms)
+    key: "jvm.jolokia[gc.old.time]"
+    interval: 60s
+    value_type: unsigned
+    units: ms
+    description: "Total time spent in old-generation GC in milliseconds"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: GC young gen count
+    key: "jvm.jolokia[gc.young.count]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total young-generation GC collection count"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: Thread count
+    key: "jvm.jolokia[threads.count]"
+    interval: 60s
+    value_type: unsigned
+    description: "Current number of live JVM threads"
+    tags:
+      - tag: component
+        value: jvm
+
+  - name: Loaded classes
+    key: "jvm.jolokia[classes.loaded]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of classes currently loaded in the JVM"
+    tags:
+      - tag: component
+        value: jvm
+
+triggers:
+  - name: JVM Jolokia unreachable
+    expression: "last(/jvm-jolokia/jvm.jolokia[ping]) = 0"
+    severity: high
+    description: "Jolokia endpoint is not responding. Check the JVM and Jolokia agent."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: High heap usage (> 85%)
+    expression: "avg(/jvm-jolokia/jvm.jolokia[heap.usage_pct],10m) > 85"
+    severity: high
+    description: "JVM heap usage has been above 85% for 10 minutes. Risk of OOM."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: Very high heap usage (> 95%)
+    expression: "avg(/jvm-jolokia/jvm.jolokia[heap.usage_pct],5m) > 95"
+    severity: disaster
+    description: "JVM heap usage above 95% for 5 minutes. OOM crash imminent."
+    tags:
+      - tag: scope
+        value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_jvm_jolokia.py
+      dest: /usr/local/zbx/scripts/check_jvm_jolokia.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-jvm-jolokia
+      parameters:
+        - key: "jvm.jolokia[*]"
+          command: "python3 /usr/local/zbx/scripts/check_jvm_jolokia.py $1"
+  test_keys:
+    - "jvm.jolokia[ping]"

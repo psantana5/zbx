@@ -1,0 +1,136 @@
+# mongodb check
+#
+# Monitors MongoDB health, connections, operations, memory and replication
+# using the check_mongodb.py UserParameter script.
+#
+# Deploy the script first:
+#   sudo cp scripts/check_mongodb.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_mongodb.py
+#
+# Add to Zabbix agent config:
+#   UserParameter=mongodb.stat[*],python3 /usr/local/zbx/scripts/check_mongodb.py $1
+#
+# Deploy:
+#   zbx apply configs/checks/mongodb/
+
+template: mongodb
+name: "MongoDB"
+description: "MongoDB monitoring via serverStatus command"
+groups:
+  - Templates/Databases
+
+items:
+  - name: MongoDB ping
+    key: "mongodb.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 if MongoDB is reachable on port 27017, 0 otherwise"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Active connections
+    key: "mongodb.stat[connections.active]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of active client connections"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Available connections
+    key: "mongodb.stat[connections.available]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of unused incoming connections available"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Operations per second (total)
+    key: "mongodb.stat[opcounters.total]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total operations per second (insert+query+update+delete+getmore+command)"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Memory resident (MB)
+    key: "mongodb.stat[mem.resident]"
+    interval: 60s
+    value_type: unsigned
+    units: MB
+    description: "Amount of RAM used by the MongoDB process in MB"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Memory virtual (MB)
+    key: "mongodb.stat[mem.virtual]"
+    interval: 60s
+    value_type: unsigned
+    units: MB
+    description: "Virtual memory used by the MongoDB process in MB"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Page faults per second
+    key: "mongodb.stat[extra_info.page_faults]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of page faults per second"
+    tags:
+      - tag: component
+        value: mongodb
+
+  - name: Replication lag (seconds)
+    key: "mongodb.stat[repl.lag]"
+    interval: 60s
+    value_type: float
+    units: s
+    description: "Replication lag in seconds (0 if primary or standalone)"
+    tags:
+      - tag: component
+        value: mongodb
+
+triggers:
+  - name: MongoDB is unreachable
+    expression: "last(/mongodb/mongodb.stat[ping]) = 0"
+    severity: high
+    description: "MongoDB is not responding on port 27017. Check the service."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: High active connections (> 500)
+    expression: "last(/mongodb/mongodb.stat[connections.active]) > 500"
+    severity: average
+    description: "MongoDB active connections exceed 500. Check for connection leaks."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: High page faults (> 100/s)
+    expression: "avg(/mongodb/mongodb.stat[extra_info.page_faults],5m) > 100"
+    severity: warning
+    description: "MongoDB page faults averaging over 100/s — working set may exceed RAM."
+    tags:
+      - tag: scope
+        value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_mongodb.py
+      dest: /usr/local/zbx/scripts/check_mongodb.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-mongodb
+      parameters:
+        - key: "mongodb.stat[*]"
+          command: "python3 /usr/local/zbx/scripts/check_mongodb.py $1"
+  test_keys:
+    - "mongodb.stat[ping]"
