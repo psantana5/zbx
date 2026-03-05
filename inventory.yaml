@@ -29,7 +29,7 @@ hosts:
   # -------------------------------------------------------------------------
   - host: zabbixtest3100
     name: "Zabbix Test Server 3100"
-    ip: zabbixtest3100    # hostname — replace with actual IP if DNS not available
+    ip: 127.0.0.1
     port: 10050
     groups:
       - Linux servers

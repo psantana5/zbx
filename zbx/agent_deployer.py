@@ -87,6 +87,7 @@ class AgentDeployer:
         ssh_port: int = 22,
         ssh_key: str | None = None,
         sudo: bool = True,
+        sudo_password: str | None = None,
         repo_root: Path | None = None,
     ) -> None:
         self.hostname = hostname
@@ -95,6 +96,7 @@ class AgentDeployer:
         self.ssh_port = ssh_port
         self.ssh_key = ssh_key
         self.sudo = sudo
+        self.sudo_password = sudo_password
         self.repo_root = repo_root or Path.cwd()
         self._local: bool = _is_localhost(ip)
         self._ssh = None
@@ -157,7 +159,13 @@ class AgentDeployer:
         return code, out, err
 
     def _sudo(self, cmd: str, check: bool = True) -> tuple[int, str, str]:
-        return self._run(f"sudo {cmd}" if self.sudo else cmd, check=check)
+        if not self.sudo:
+            return self._run(cmd, check=check)
+        if self._local and self.sudo_password is not None:
+            # Use sudo -S to read password from stdin — avoids interactive prompts
+            escaped = self.sudo_password.replace("'", "'\\''")
+            return self._run(f"echo '{escaped}' | sudo -S -p '' {cmd}", check=check)
+        return self._run(f"sudo {cmd}", check=check)
 
     # ------------------------------------------------------------------
     # File inspection helpers
@@ -177,10 +185,12 @@ class AgentDeployer:
         """Read text content of a file on the host."""
         if self._local:
             p = Path(path)
+            if not p.exists():
+                return None
             try:
                 return p.read_text(errors="replace")
-            except (OSError, PermissionError):
-                # Try via sudo cat for protected files like /etc/zabbix/...
+            except PermissionError:
+                # Try via sudo cat for root-owned files like /etc/zabbix/...
                 code, out, _ = self._run(f"sudo cat {path} 2>/dev/null || true", check=False)
                 return out if code == 0 else None
         code, out, _ = self._run(f"cat {path} 2>/dev/null || true", check=False)
@@ -217,12 +227,27 @@ class AgentDeployer:
 
     def _write_text(self, content: str, dest: str) -> None:
         """Write text content to dest on the host."""
+        import tempfile  # noqa: PLC0415
         dest_dir = str(Path(dest).parent)
         self._sudo(f"mkdir -p {dest_dir}")
-        # Use printf to avoid echo interpretation issues; tee handles sudo write
-        escaped = content.replace("\\", "\\\\").replace("'", "'\\''")
-        self._sudo(f"bash -c $'printf \\'%s\\' \\'{escaped}\\'' | tee {dest} > /dev/null")
-        self._sudo(f"chmod 644 {dest}")
+        if self._local:
+            # Write to a tmp file without sudo, then sudo cp into place
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".zbxtmp", delete=False) as tf:
+                tf.write(content)
+                tmp_path = tf.name
+            try:
+                self._sudo(f"cp {tmp_path} {dest}")
+                self._sudo(f"chmod 644 {dest}")
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
+        else:
+            tmp = f"/tmp/_zbx_{Path(dest).name}"
+            _, stdout_obj, _ = self._ssh.exec_command(f"cat > {tmp}")
+            stdout_obj.channel.sendall(content.encode())
+            stdout_obj.channel.shutdown_write()
+            stdout_obj.channel.recv_exit_status()
+            self._sudo(f"mv {tmp} {dest}")
+            self._sudo(f"chmod 644 {dest}")
 
     # ------------------------------------------------------------------
     # Diff

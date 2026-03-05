@@ -148,6 +148,14 @@ def agent_deploy_cmd(
 
     rprint(f"\n[bold]Agent deploy → [cyan]{hostname}[/cyan] ({inv_host.ip})[/bold]\n")
 
+    # For local deployments requiring sudo, prompt for password upfront
+    from zbx.agent_deployer import _is_localhost  # noqa: PLC0415
+    sudo_password: str | None = None
+    if cfg.sudo and _is_localhost(inv_host.ip) and not dry_run:
+        sudo_password = typer.prompt("sudo password", hide_input=True, default="", show_default=False)
+        if not sudo_password:
+            sudo_password = None
+
     with AgentDeployer(
         hostname=hostname,
         ip=inv_host.ip,
@@ -155,6 +163,7 @@ def agent_deploy_cmd(
         ssh_port=cfg.ssh_port,
         ssh_key=cfg.ssh_key,
         sudo=cfg.sudo,
+        sudo_password=sudo_password,
         repo_root=repo_root,
     ) as deployer:
         # Show diff first
