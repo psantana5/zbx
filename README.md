@@ -265,7 +265,8 @@ hosts:
 
 **Localhost shortcut:** If `ip` is `127.0.0.1`, `localhost`, or `::1`, zbx
 skips SSH entirely and runs all commands locally via subprocess. No SSH key
-setup required.
+setup required. `zbx agent deploy` will prompt for your sudo password once
+at startup (hidden input) and use it for all writes to `/etc/zabbix/`.
 
 ### zbx inventory
 
@@ -286,9 +287,18 @@ transferred.
 zbx agent diff   webserver01   # show what would change on the host
 zbx agent deploy webserver01   # copy scripts, write userparameters
 zbx agent deploy webserver01 --dry-run
+zbx agent deploy webserver01 --auto-approve   # skip confirmation (CI/CD)
 zbx agent test   webserver01   # run zabbix_agentd -t for each test_key
 zbx agent test   webserver01 --key nginx.active_connections  # ad-hoc test
 ```
+
+For **remote hosts**, zbx connects over SSH (Paramiko). The user running zbx
+must have SSH key access to the host. Password auth is not supported — use
+`ssh-copy-id` to set up key-based auth first.
+
+For **localhost**, zbx uses subprocess. If `sudo: true` is set in the agent
+config, `zbx agent deploy` prompts for your sudo password once before making
+any writes.
 
 ---
 
@@ -353,9 +363,14 @@ git commit -m "feat: add monitoring for myhost"
 | `history` | string | `90d` | History retention |
 | `trends` | string | `365d` | Trends retention |
 | `enabled` | bool | `true` | Whether the item is active |
+| `params` | string | `""` | Formula for `calculated` items; JSONPath/regex for `http_agent` |
 
 Item types: `zabbix_agent`, `zabbix_agent_active`, `zabbix_trapper`,
 `simple_check`, `calculated`, `http_agent`, `snmp_v2c`, `dependent`
+
+> **`calculated` items require `params`** — set it to the formula string,
+> e.g. `params: "avg(/mytemplate/my.key,5m)"`. Omitting it causes
+> `Invalid parameter "/1": the parameter "params" is missing` from the API.
 
 Value types: `float`, `unsigned`, `char`, `text`, `log`
 
