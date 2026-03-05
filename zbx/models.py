@@ -227,6 +227,25 @@ class Template(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Host configuration (template linking + macros)
+# ---------------------------------------------------------------------------
+
+
+class HostMacro(BaseModel):
+    macro: str   # e.g. {$S3_USER_PASSWORD}
+    value: str
+    description: str = ""
+
+
+class Host(BaseModel):
+    """Declarative host configuration: which templates to link and which macros to set."""
+
+    host: str                                           # technical host name in Zabbix
+    templates: list[str] = Field(default_factory=list)  # template names to link
+    macros: list[HostMacro] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Connection settings
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,24 @@
+# Host configuration for zabbixtest3100
+#
+# This file links templates and sets macros on an existing Zabbix host.
+# The host must already exist in Zabbix (created via auto-discovery or manually).
+#
+# Deploy with:
+#   zbx apply configs/hosts/zabbixtest3100.yaml
+#
+# Or deploy everything at once (templates + host config):
+#   zbx apply configs/
+
+host: zabbixtest3100
+
+templates:
+  - monitoring-s3-users
+
+macros:
+  - macro: "{$S3_USER_PASSWORD}"
+    value: "your_s3_password_here"
+    description: "S3 user password passed to getS3Storage.py"
+
+  - macro: "{$S3_USER_GROUP}"
+    value: "your_s3_group_here"
+    description: "S3 user group passed to getS3Storage.py"

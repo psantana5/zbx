@@ -1,15 +1,41 @@
-"""Apply desired Template state to a Zabbix server."""
+"""Apply desired Template and Host state to a Zabbix server."""
 
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 
 from zbx.diff_engine import ChangeType, DiffEngine, TemplateDiff
-from zbx.models import DiscoveryRule, Item, ItemPrototype, ItemType, Template, Trigger, TriggerPrototype
+from zbx.models import DiscoveryRule, Host, HostMacro, Item, ItemPrototype, ItemType, Template, Trigger, TriggerPrototype
 from zbx.zabbix_client import ZabbixClient
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MacroChange:
+    macro: str
+    type: ChangeType
+    old_value: str = ""
+    new_value: str = ""
+
+
+@dataclass
+class HostDiff:
+    host_name: str
+    found: bool                                    # False = host doesn't exist in Zabbix
+    templates_to_link: list[str] = field(default_factory=list)
+    templates_already_linked: list[str] = field(default_factory=list)
+    macro_changes: list[MacroChange] = field(default_factory=list)
+
+    @property
+    def has_changes(self) -> bool:
+        if not self.found:
+            return False  # can't configure a host that doesn't exist
+        return bool(self.templates_to_link) or any(
+            m.type != ChangeType.UNCHANGED for m in self.macro_changes
+        )
 
 
 class Deployer:
@@ -50,6 +76,108 @@ class Deployer:
             self._create_template(template)
         else:
             self._update_template(template, diff)
+
+        return diff
+
+    def plan_host(self, host: Host) -> HostDiff:
+        """Compute what template links and macros would change for *host*."""
+        current = self._client.get_host(host.host)
+        if current is None:
+            return HostDiff(host_name=host.host, found=False)
+
+        hostid = str(current["hostid"])
+
+        # Which templates are already linked?
+        linked_names = {t["host"] for t in current.get("parentTemplates", [])}
+        to_link = [t for t in host.templates if t not in linked_names]
+        already = [t for t in host.templates if t in linked_names]
+
+        # Macro diff
+        current_macros = {m["macro"]: m for m in current.get("macros", [])}
+        macro_changes: list[MacroChange] = []
+        for desired in host.macros:
+            cur = current_macros.get(desired.macro)
+            if cur is None:
+                macro_changes.append(
+                    MacroChange(macro=desired.macro, type=ChangeType.ADD, new_value=desired.value)
+                )
+            elif cur["value"] != desired.value or cur.get("description", "") != desired.description:
+                macro_changes.append(
+                    MacroChange(
+                        macro=desired.macro,
+                        type=ChangeType.MODIFY,
+                        old_value=cur["value"],
+                        new_value=desired.value,
+                    )
+                )
+            else:
+                macro_changes.append(
+                    MacroChange(macro=desired.macro, type=ChangeType.UNCHANGED, new_value=desired.value)
+                )
+
+        return HostDiff(
+            host_name=host.host,
+            found=True,
+            templates_to_link=to_link,
+            templates_already_linked=already,
+            macro_changes=macro_changes,
+        )
+
+    def apply_host(self, host: Host) -> HostDiff:
+        """Apply template links and macros to an existing host."""
+        diff = self.plan_host(host)
+
+        if not diff.found:
+            logger.warning(
+                "Host '%s' not found in Zabbix — skipping. "
+                "Hosts must be created in Zabbix before zbx can configure them.",
+                host.host,
+            )
+            return diff
+
+        if not diff.has_changes:
+            logger.info("Host '%s': already up-to-date.", host.host)
+            return diff
+
+        if self._dry_run:
+            return diff
+
+        current = self._client.get_host(host.host)
+        assert current is not None
+        hostid = str(current["hostid"])
+
+        # Link templates
+        if diff.templates_to_link:
+            # Resolve template names → IDs
+            template_ids: list[str] = []
+            for tname in diff.templates_to_link:
+                tmpl = self._client.get_template(tname)
+                if tmpl is None:
+                    logger.warning("Template '%s' not found — run `zbx apply` on it first.", tname)
+                    continue
+                template_ids.append(str(tmpl["templateid"]))
+
+            if template_ids:
+                # Include already-linked templates so we don't accidentally unlink them
+                existing_ids = [
+                    str(t["templateid"]) for t in current.get("parentTemplates", [])
+                ]
+                self._client.link_templates(hostid, existing_ids + template_ids)
+                for tname in diff.templates_to_link:
+                    logger.info("  + linked template '%s' to host '%s'", tname, host.host)
+
+        # Apply macros
+        current_macros = {m["macro"]: m for m in current.get("macros", [])}
+        for mc in diff.macro_changes:
+            if mc.type == ChangeType.ADD:
+                desired = next(m for m in host.macros if m.macro == mc.macro)
+                self._client.create_host_macro(hostid, mc.macro, mc.new_value, desired.description)
+                logger.info("  + macro %s on '%s'", mc.macro, host.host)
+            elif mc.type == ChangeType.MODIFY:
+                hostmacroid = str(current_macros[mc.macro]["hostmacroid"])
+                desired = next(m for m in host.macros if m.macro == mc.macro)
+                self._client.update_host_macro(hostmacroid, mc.new_value, desired.description)
+                logger.info("  ~ macro %s on '%s'", mc.macro, host.host)
 
         return diff
 

@@ -10,7 +10,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from zbx import formatter
 from zbx.config_loader import ConfigLoader
-from zbx.deployer import Deployer
+from zbx.deployer import Deployer, HostDiff
 from zbx.diff_engine import TemplateDiff
 from zbx.zabbix_client import ZabbixAPIError, ZabbixClient
 
@@ -30,63 +30,74 @@ def apply_cmd(
         False, "--auto-approve", "-y", help="Skip interactive confirmation."
     ),
 ) -> None:
-    """Apply configuration to Zabbix (create or update templates, items, triggers)."""
+    """Apply configuration to Zabbix (templates, items, triggers, host links, macros)."""
     loader = ConfigLoader()
 
     try:
         settings = loader.load_settings(env_file)
-        templates = loader.load_templates(path)
+        templates, hosts = loader.load_all(path)
     except (FileNotFoundError, ValueError, EnvironmentError) as exc:
         formatter.print_error(str(exc))
         raise typer.Exit(1) from exc
 
-    if not templates:
-        console.print("[yellow]No templates found at the given path.[/yellow]")
+    if not templates and not hosts:
+        console.print("[yellow]No configuration found at the given path.[/yellow]")
         raise typer.Exit(0)
 
     try:
         with ZabbixClient(settings) as client:
             deployer = Deployer(client, dry_run=True)
-            diffs = [deployer.plan(tmpl) for tmpl in templates]
+            template_diffs = [deployer.plan(t) for t in templates]
+            host_diffs = [deployer.plan_host(h) for h in hosts]
     except ZabbixAPIError as exc:
         formatter.print_error(f"Zabbix API: {exc}")
         raise typer.Exit(1) from exc
 
-    # Show the plan first
-    formatter.print_diff(diffs, title="Plan")
+    formatter.print_diff(template_diffs, title="Plan")
+    formatter.print_host_diff(host_diffs, title="Plan")
 
-    if not any(d.has_changes for d in diffs):
+    no_changes = not any(d.has_changes for d in template_diffs) and \
+                 not any(d.has_changes for d in host_diffs)
+    if no_changes:
         raise typer.Exit(0)
 
     if dry_run:
         console.print("[dim]Dry-run mode — no changes applied.[/dim]")
         raise typer.Exit(0)
 
-    # Confirmation prompt
     if not auto_approve:
         confirmed = typer.confirm("\nDo you want to apply these changes?", default=False)
         if not confirmed:
             console.print("[yellow]Aborted.[/yellow]")
             raise typer.Exit(0)
 
-    # Apply
-    results: list[TemplateDiff] = []
+    t_results: list[TemplateDiff] = []
+    h_results: list[HostDiff] = []
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
         transient=True,
     ) as progress:
-        task = progress.add_task("Applying…", total=len(templates))
+        total = len(templates) + len(hosts)
+        task = progress.add_task("Applying…", total=total)
         try:
             with ZabbixClient(settings) as client:
                 deployer = Deployer(client, dry_run=False)
                 for tmpl in templates:
-                    progress.update(task, description=f"Applying '{tmpl.template}'…")
-                    results.append(deployer.apply(tmpl))
+                    progress.update(task, description=f"Applying template '{tmpl.template}'…")
+                    t_results.append(deployer.apply(tmpl))
+                    progress.advance(task)
+                for host in hosts:
+                    progress.update(task, description=f"Configuring host '{host.host}'…")
+                    h_results.append(deployer.apply_host(host))
                     progress.advance(task)
         except ZabbixAPIError as exc:
             formatter.print_error(f"Zabbix API: {exc}")
             raise typer.Exit(1) from exc
 
-    formatter.print_apply_result(results)
+    formatter.print_apply_result(t_results)
+    applied_hosts = [h for h in h_results if h.has_changes]
+    if applied_hosts:
+        console.print(f"[green]✓ Configured {len(applied_hosts)} host(s).[/green]")

@@ -25,7 +25,7 @@ def diff_cmd(
 
     try:
         settings = loader.load_settings(env_file)
-        templates = loader.load_templates(path)
+        templates, hosts = loader.load_all(path)
     except (FileNotFoundError, ValueError, EnvironmentError) as exc:
         formatter.print_error(str(exc))
         raise typer.Exit(1) from exc
@@ -33,9 +33,11 @@ def diff_cmd(
     try:
         with ZabbixClient(settings) as client:
             deployer = Deployer(client, dry_run=True)
-            diffs = [deployer.plan(tmpl) for tmpl in templates]
+            template_diffs = [deployer.plan(t) for t in templates]
+            host_diffs = [deployer.plan_host(h) for h in hosts]
     except ZabbixAPIError as exc:
         formatter.print_error(f"Zabbix API: {exc}")
         raise typer.Exit(1) from exc
 
-    formatter.print_diff(diffs, title="Diff")
+    formatter.print_diff(template_diffs, title="Diff")
+    formatter.print_host_diff(host_diffs, title="Diff")

@@ -1,4 +1,4 @@
-"""Load and validate YAML configuration files into Template models."""
+"""Load and validate YAML configuration files into Template and Host models."""
 
 from __future__ import annotations
 
@@ -8,26 +8,31 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from zbx.models import Template, ZabbixSettings
+from zbx.models import Host, Template, ZabbixSettings
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigLoader:
-    """Loads Template definitions from YAML files or directories."""
+    """Loads Template and Host definitions from YAML files or directories."""
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def load_templates(self, path: Path) -> list[Template]:
-        """Return all templates found at *path* (file or directory tree)."""
-        files = self._collect_files(path)
-        templates: list[Template] = []
-        for f in files:
-            templates.extend(self._load_file(f))
-        logger.debug("Loaded %d template(s) from %s", len(templates), path)
+        """Return all Template documents found at *path*."""
+        templates, _ = self._load_all(path)
         return templates
+
+    def load_hosts(self, path: Path) -> list[Host]:
+        """Return all Host documents found at *path*."""
+        _, hosts = self._load_all(path)
+        return hosts
+
+    def load_all(self, path: Path) -> tuple[list[Template], list[Host]]:
+        """Return (templates, hosts) found at *path*."""
+        return self._load_all(path)
 
     def load_settings(self, env_file: Path | None = None) -> ZabbixSettings:
         """Load Zabbix connection settings from environment / .env file."""
@@ -58,6 +63,20 @@ class ConfigLoader:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    def _load_all(self, path: Path) -> tuple[list[Template], list[Host]]:
+        files = self._collect_files(path)
+        templates: list[Template] = []
+        hosts: list[Host] = []
+        for f in files:
+            t, h = self._load_file(f)
+            templates.extend(t)
+            hosts.extend(h)
+        logger.debug(
+            "Loaded %d template(s) and %d host(s) from %s",
+            len(templates), len(hosts), path,
+        )
+        return templates, hosts
+
     def _collect_files(self, path: Path) -> list[Path]:
         if path.is_file():
             return [path]
@@ -65,7 +84,7 @@ class ConfigLoader:
             return sorted(path.rglob("*.yaml")) + sorted(path.rglob("*.yml"))
         raise FileNotFoundError(f"Path not found: {path}")
 
-    def _load_file(self, path: Path) -> list[Template]:
+    def _load_file(self, path: Path) -> tuple[list[Template], list[Host]]:
         try:
             with path.open() as fh:
                 raw = yaml.safe_load(fh)
@@ -73,22 +92,30 @@ class ConfigLoader:
             raise ValueError(f"Invalid YAML in {path}: {exc}") from exc
 
         if raw is None:
-            return []
+            return [], []
 
         documents = raw if isinstance(raw, list) else [raw]
         templates: list[Template] = []
+        hosts: list[Host] = []
+
         for idx, doc in enumerate(documents):
             if not isinstance(doc, dict):
                 raise ValueError(
-                    f"Expected a mapping at document index {idx} in {path}, got {type(doc).__name__}"
+                    f"Expected a mapping at document index {idx} in {path}, "
+                    f"got {type(doc).__name__}"
                 )
             try:
-                tmpl = Template.model_validate(doc)
-                templates.append(tmpl)
-                logger.debug("Parsed template '%s' from %s", tmpl.template, path)
+                if "host" in doc and "template" not in doc:
+                    h = Host.model_validate(doc)
+                    hosts.append(h)
+                    logger.debug("Parsed host '%s' from %s", h.host, path)
+                else:
+                    t = Template.model_validate(doc)
+                    templates.append(t)
+                    logger.debug("Parsed template '%s' from %s", t.template, path)
             except ValidationError as exc:
-                # Re-raise with context so callers can show a clean error.
                 raise ValueError(
                     f"Schema validation failed for document {idx} in {path}:\n{exc}"
                 ) from exc
-        return templates
+
+        return templates, hosts

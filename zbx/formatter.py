@@ -7,6 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from zbx.deployer import HostDiff
 from zbx.diff_engine import ChangeType, ResourceChange, TemplateDiff
 
 console = Console()
@@ -151,10 +152,61 @@ def print_apply_result(diffs: list[TemplateDiff]) -> None:
     console.print("[green]✓ Apply complete.[/green]")
 
 
-def print_validate_ok(templates: list) -> None:
-    console.print(
-        f"[green]✓ Validated {len(templates)} template(s) — no schema errors.[/green]"
-    )
+def print_validate_ok(templates: list, hosts: list | None = None) -> None:
+    t = len(templates)
+    h = len(hosts) if hosts else 0
+    parts = []
+    if t:
+        parts.append(f"{t} template(s)")
+    if h:
+        parts.append(f"{h} host config(s)")
+    noun = " and ".join(parts) or "0 documents"
+    console.print(f"[green]✓ Validated {noun} — no schema errors.[/green]")
+
+
+def print_host_diff(host_diffs: list[HostDiff], *, title: str = "Plan") -> None:
+    """Print Terraform-style diff for host configuration changes."""
+    for diff in host_diffs:
+        if not diff.found:
+            console.print(
+                f"[bold yellow]⚠  host '{diff.host_name}' not found in Zabbix — "
+                "create it first, then run zbx apply again.[/bold yellow]"
+            )
+            continue
+        if not diff.has_changes:
+            continue
+
+        lines: list[Text] = []
+
+        for tname in diff.templates_to_link:
+            line = Text()
+            line.append("  + ", style="bold green")
+            line.append("🔗 link template: ", style="green")
+            line.append(tname, style="bold green")
+            lines.append(line)
+
+        for mc in diff.macro_changes:
+            if mc.type == ChangeType.UNCHANGED:
+                continue
+            col = _COLOR[mc.type]
+            sym = _SYMBOL[mc.type]
+            line = Text()
+            line.append(f"  {sym} ", style=f"bold {col}")
+            line.append("🔑 macro: ", style=col)
+            line.append(mc.macro, style=f"bold {col}")
+            if mc.type == ChangeType.MODIFY:
+                line.append(f"\n      value: ", style="dim")
+                line.append(mc.old_value, style="red")
+                line.append(" → ", style="dim")
+                line.append(mc.new_value, style="green")
+            lines.append(line)
+
+        body = Text("\n").join(lines)
+        header = Text()
+        header.append("~ ", style="bold yellow")
+        header.append("host: ", style="bold")
+        header.append(diff.host_name, style="bold yellow")
+        console.print(Panel(body, title=header, title_align="left", border_style="yellow", padding=(0, 1)))
 
 
 def print_error(message: str) -> None:

@@ -232,6 +232,52 @@ class ZabbixClient:
         self._call("template.update", {"templateid": templateid, **kwargs})
 
     # ------------------------------------------------------------------
+    # Hosts (linking templates + macros)
+    # ------------------------------------------------------------------
+
+    def get_host(self, name: str) -> dict[str, Any] | None:
+        results = self._call("host.get", {
+            "filter": {"host": [name]},
+            "output": ["hostid", "host", "name", "status"],
+            "selectParentTemplates": ["templateid", "host"],
+            "selectMacros": ["hostmacroid", "macro", "value", "description"],
+        })
+        return results[0] if results else None
+
+    def link_templates(self, hostid: str, template_ids: list[str]) -> None:
+        """Add templates to a host without removing existing ones."""
+        self._call("host.update", {
+            "hostid": hostid,
+            "templates": [{"templateid": tid} for tid in template_ids],
+        })
+
+    def get_host_macros(self, hostid: str) -> list[dict[str, Any]]:
+        return self._call("usermacro.get", {  # type: ignore[return-value]
+            "hostids": [hostid],
+            "output": ["hostmacroid", "macro", "value", "description"],
+        })
+
+    def create_host_macro(
+        self, hostid: str, macro: str, value: str, description: str = ""
+    ) -> str:
+        result = self._call("usermacro.create", {
+            "hostid": hostid,
+            "macro": macro,
+            "value": value,
+            "description": description,
+        })
+        return str(result["hostmacroids"][0])
+
+    def update_host_macro(
+        self, hostmacroid: str, value: str, description: str = ""
+    ) -> None:
+        self._call("usermacro.update", {
+            "hostmacroid": hostmacroid,
+            "value": value,
+            "description": description,
+        })
+
+    # ------------------------------------------------------------------
     # Items
     # ------------------------------------------------------------------
 
