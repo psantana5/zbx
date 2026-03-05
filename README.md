@@ -9,6 +9,8 @@ zbx apply     configs/          Apply changes to Zabbix
 zbx diff      configs/          Compare local config against Zabbix
 zbx validate  configs/          Validate YAML schema (no Zabbix connection)
 zbx export    linux             Export an existing template to YAML
+zbx export    --all             Export every template to configs/templates/
+zbx schema                      Print YAML field reference (Markdown or JSON Schema)
 zbx scaffold  my-check          Bootstrap a new monitoring check folder
 
 zbx inventory list              List all hosts in Zabbix
@@ -41,11 +43,19 @@ zbx agent test   <host> --from-check configs/checks/my-check/
 
 Requirements: Python 3.11+
 
+**From PyPI (recommended):**
+
+```bash
+pip install zbxctl
+zbx --version
+```
+
+**From source (for development):**
+
 ```bash
 git clone https://github.com/psantana5/zbx
 cd zbx
 pip install -e .
-
 zbx --version
 ```
 
@@ -221,6 +231,20 @@ templates to Git.
 zbx export "Linux by Zabbix agent"
 zbx export "Linux by Zabbix agent" --output configs/templates/linux-zabbix-agent.yaml
 zbx export linux        # partial name search
+
+# Export every template at once
+zbx export --all                              # writes to configs/templates/
+zbx export --all --out-dir my-backup/
+```
+
+### zbx schema
+
+Prints the full YAML field reference. Useful when writing templates by hand.
+
+```bash
+zbx schema                          # Markdown table (default)
+zbx schema --format json            # JSON Schema (for editor integration)
+zbx schema --output docs/schema.md  # write to file
 ```
 
 ### zbx scaffold
@@ -581,35 +605,50 @@ zbx apply configs/templates/redis.yaml --auto-approve
 
 ---
 
-## CI/CD Integration
+## CI/CD Integration — GitOps Workflow
 
-```yaml
-# .github/workflows/zbx-apply.yml
-name: Deploy monitoring config
+The repository ships with `.github/workflows/zbx-gitops.yml`, a Terraform-style
+GitOps pipeline:
 
-on:
-  push:
-    branches: [main]
-    paths: [configs/**]
+| Event | Action |
+|---|---|
+| Pull request touches `configs/` | `zbx validate` + `zbx plan` — result posted as PR comment |
+| Merge to `main` | `zbx apply --auto-approve` — changes deployed to Zabbix |
 
-jobs:
-  apply:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -e .
-      - run: zbx validate configs/
-      - run: zbx apply configs/ --auto-approve
-        env:
-          ZBX_URL: ${{ secrets.ZBX_URL }}
-          ZBX_USER: ${{ secrets.ZBX_USER }}
-          ZBX_PASSWORD: ${{ secrets.ZBX_PASSWORD }}
+**Required secrets** (Settings → Secrets and variables → Actions):
+
+```
+ZBX_URL       https://zabbix.example.com
+ZBX_USER      Admin
+ZBX_PASSWORD  secret
 ```
 
----
+**Manual trigger**: Go to Actions → zbx GitOps → Run workflow → choose `plan` or `apply`.
+
+### Private Zabbix (localhost / VPN)
+
+GitHub's cloud runners cannot reach a Zabbix server on a private network.
+Use a [self-hosted runner](https://docs.github.com/en/actions/hosting-your-own-runners)
+on a machine that has network access to your Zabbix:
+
+```yaml
+# In .github/workflows/zbx-gitops.yml, change:
+runs-on: ubuntu-latest
+# to:
+runs-on: self-hosted
+```
+
+### PyPI auto-publish
+
+Tag a release to publish `zbxctl` to PyPI automatically via `.github/workflows/publish.yml`:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow uses OIDC trusted publishing — no API token needed once configured
+at [pypi.org/manage/project/zbxctl/settings/publishing/](https://pypi.org/manage/project/zbxctl/settings/publishing/).
 
 ## Safety Behaviour
 
