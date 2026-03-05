@@ -344,6 +344,14 @@ class ZabbixClient:
             "templates": [{"templateid": tid} for tid in template_ids],
         })
 
+    def update_host(self, hostid: str, **kwargs: Any) -> None:
+        """Update arbitrary host fields."""
+        self._call("host.update", {"hostid": hostid, **kwargs})
+
+    def delete_host(self, hostid: str) -> None:
+        """Permanently delete a host from Zabbix."""
+        self._call("host.delete", [hostid])
+
     def get_host_macros(self, hostid: str) -> list[dict[str, Any]]:
         return self._call("usermacro.get", {  # type: ignore[return-value]
             "hostids": [hostid],

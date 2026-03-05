@@ -19,6 +19,7 @@ from zbx.commands.agent import app as agent_app
 from zbx.commands.check import app as check_app
 from zbx.commands.diff import diff_cmd
 from zbx.commands.export import export_cmd
+from zbx.commands.host import app as host_app
 from zbx.commands.inventory import app as inventory_app
 from zbx.commands.plan import plan_cmd
 from zbx.commands.scaffold import scaffold_cmd
@@ -53,6 +54,7 @@ app.command("schema", help="Print YAML schema reference (Markdown or JSON).")(sc
 app.command("scaffold", help="Bootstrap a new check folder (script + check.yaml skeleton).")(scaffold_cmd)
 app.command("status", help="Show connection status and Zabbix server info.")(status_cmd)
 app.add_typer(check_app, name="check", help="Discover and deploy bundled monitoring checks.")
+app.add_typer(host_app, name="host", help="List, create and delete Zabbix hosts.")
 app.add_typer(inventory_app, name="inventory", help="Manage host inventory (list, apply).")
 app.add_typer(agent_app, name="agent", help="Deploy scripts and UserParameters to hosts.")
 
