@@ -527,3 +527,9 @@ class ZabbixClient:
             "searchByAny": True,
             "output": ["templateid", "host", "name", "description"],
         })
+
+    def get_all_templates(self) -> list[dict[str, Any]]:
+        """Return every template in Zabbix (id + name only)."""
+        return self._call("template.get", {  # type: ignore[return-value]
+            "output": ["templateid", "host", "name"],
+        })

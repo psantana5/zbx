@@ -1,0 +1,149 @@
+# redis check
+#
+# Monitors Redis health, memory, hit rate and replication
+# using the check_redis.py UserParameter script.
+#
+# Deploy the script first:
+#   sudo cp scripts/check_redis.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_redis.py
+#   pip install redis
+#
+# Add to Zabbix agent config:
+#   UserParameter=redis.stat[*],/usr/local/zbx/scripts/check_redis.py $1
+#
+# Deploy:
+#   zbx apply configs/checks/redis/
+
+template: redis
+name: "Redis"
+description: "Redis health: connections, memory, hit rate, evictions, replication"
+groups:
+  - Templates
+  - Templates/Databases
+
+items:
+  - name: Redis ping
+    key: "redis.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 if Redis is reachable, 0 otherwise"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Connected clients
+    key: "redis.stat[connected_clients]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of connected clients"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Used memory
+    key: "redis.stat[used_memory]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Memory allocated by Redis in bytes"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: RSS memory
+    key: "redis.stat[used_memory_rss]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Resident Set Size memory — actual OS memory pages"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Keyspace hit rate
+    key: "redis.stat[hit_rate]"
+    interval: 60s
+    value_type: float
+    units: "%"
+    description: "Percentage of successful key lookups"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Evicted keys
+    key: "redis.stat[evicted_keys]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total number of evicted keys (maxmemory-policy)"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Operations per second
+    key: "redis.stat[ops_per_sec]"
+    interval: 60s
+    value_type: unsigned
+    description: "Instantaneous commands processed per second"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Replication lag
+    key: "redis.stat[replication.lag]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Replication offset lag in bytes (0 on master)"
+    tags:
+      - tag: component
+        value: redis
+
+  - name: Total keys
+    key: "redis.stat[keyspace.keys]"
+    interval: 5m
+    value_type: unsigned
+    description: "Total number of keys across all databases"
+    tags:
+      - tag: component
+        value: redis
+
+triggers:
+  - name: Redis is unreachable
+    expression: "last(/redis/redis.stat[ping]) = 0"
+    severity: high
+    description: "Redis is not responding. Check the service."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: Low keyspace hit rate (< 80%)
+    expression: "avg(/redis/redis.stat[hit_rate],10m) < 80"
+    severity: warning
+    description: "Hit rate below 80% — too many cache misses. Consider increasing memory."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: High memory usage (> 90% of maxmemory)
+    expression: "last(/redis/redis.stat[used_memory]) > 943718400"
+    severity: average
+    description: "Redis is using more than 900 MB. Adjust this trigger to your maxmemory setting."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: Keys being evicted
+    expression: "change(/redis/redis.stat[evicted_keys]) > 0"
+    severity: warning
+    description: "Redis is evicting keys due to memory pressure."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: High replication lag (> 10 MB)
+    expression: "last(/redis/redis.stat[replication.lag]) > 10485760"
+    severity: average
+    description: "Redis replica is lagging more than 10 MB behind the master."
+    tags:
+      - tag: scope
+        value: availability

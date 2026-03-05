@@ -1,0 +1,146 @@
+name: zbx GitOps
+
+# Terraform-style GitOps for Zabbix:
+#   - Pull requests  → zbx plan   (show what would change, post as PR comment)
+#   - Push to main   → zbx apply  (apply changes to Zabbix)
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   ZABBIX_URL      e.g. https://zabbix.example.com
+#   ZABBIX_USER     API user (minimum Template write permissions)
+#   ZABBIX_PASSWORD API user password
+#
+# Optional: set CONFIGS_PATH to override the default "configs/" directory.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "configs/**"
+      - "inventory.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "configs/**"
+      - "inventory.yaml"
+
+env:
+  CONFIGS_PATH: ${{ vars.CONFIGS_PATH || 'configs/' }}
+
+jobs:
+  # ── Plan (on every PR) ───────────────────────────────────────────────────
+  plan:
+    name: zbx plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write   # needed to post the plan as a PR comment
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install zbx-tool
+        run: pip install zbx-tool
+        # To use the local repo version instead:
+        # run: pip install -e .
+
+      - name: Create .env
+        run: |
+          cat > .env << EOF
+          ZABBIX_URL=${{ secrets.ZABBIX_URL }}
+          ZABBIX_USER=${{ secrets.ZABBIX_USER }}
+          ZABBIX_PASSWORD=${{ secrets.ZABBIX_PASSWORD }}
+          EOF
+
+      - name: zbx validate
+        run: zbx validate ${{ env.CONFIGS_PATH }}
+
+      - name: zbx plan
+        id: plan
+        run: |
+          zbx plan ${{ env.CONFIGS_PATH }} 2>&1 | tee plan_output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Post plan as PR comment
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('plan_output.txt', 'utf8');
+            const body = [
+              '## 📋 zbx plan',
+              '',
+              '```',
+              output.slice(0, 60000),   // GitHub comment limit
+              '```',
+              '',
+              `Run by: @${{ github.actor }} | Commit: ${{ github.sha }}`,
+            ].join('\n');
+
+            // Delete previous zbx plan comments to keep PR clean
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            for (const c of comments) {
+              if (c.body.startsWith('## 📋 zbx plan') && c.user.type === 'Bot') {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: c.id,
+                });
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+  # ── Apply (on push to main) ──────────────────────────────────────────────
+  apply:
+    name: zbx apply
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production   # optional: require manual approval gate
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install zbx-tool
+        run: pip install zbx-tool
+
+      - name: Create .env
+        run: |
+          cat > .env << EOF
+          ZABBIX_URL=${{ secrets.ZABBIX_URL }}
+          ZABBIX_USER=${{ secrets.ZABBIX_USER }}
+          ZABBIX_PASSWORD=${{ secrets.ZABBIX_PASSWORD }}
+          EOF
+
+      - name: zbx validate
+        run: zbx validate ${{ env.CONFIGS_PATH }}
+
+      - name: zbx apply
+        run: zbx apply ${{ env.CONFIGS_PATH }} --auto-approve
+
+      - name: zbx plan (post-apply drift check)
+        run: |
+          OUTPUT=$(zbx plan ${{ env.CONFIGS_PATH }} 2>&1)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -qi "to add\|to modify\|to remove"; then
+            echo "::warning::Drift detected after apply — check zbx plan output above"
+          fi

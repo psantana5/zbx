@@ -21,6 +21,7 @@ from zbx.commands.export import export_cmd
 from zbx.commands.inventory import app as inventory_app
 from zbx.commands.plan import plan_cmd
 from zbx.commands.scaffold import scaffold_cmd
+from zbx.commands.schema import schema_cmd
 from zbx.commands.validate import validate_cmd
 
 console = Console(stderr=True)
@@ -46,6 +47,7 @@ app.command("plan", help="Show what changes would be applied (dry run).")(plan_c
 app.command("diff", help="Show differences between local config and Zabbix.")(diff_cmd)
 app.command("validate", help="Validate YAML files against the schema.")(validate_cmd)
 app.command("export", help="Export a Zabbix template to YAML (for Git migration).")(export_cmd)
+app.command("schema", help="Print YAML schema reference (Markdown or JSON).")(schema_cmd)
 app.command("scaffold", help="Bootstrap a new check folder (script + check.yaml skeleton).")(scaffold_cmd)
 app.add_typer(inventory_app, name="inventory", help="Manage host inventory (list, apply).")
 app.add_typer(agent_app, name="agent", help="Deploy scripts and UserParameters to hosts.")

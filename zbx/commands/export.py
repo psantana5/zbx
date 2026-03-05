@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Optional
 
 import typer
 import yaml
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 from zbx import formatter
 from zbx.config_loader import ConfigLoader
@@ -33,21 +36,40 @@ console = Console()
 app = typer.Typer()
 
 
+def _slug(name: str) -> str:
+    """Convert a template name to a safe filename slug."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
 def export_cmd(
-    name: str = typer.Argument(..., help="Template name or partial name to search for."),
+    name: Optional[str] = typer.Argument(None, help="Template name or partial name to search for."),
     output: Optional[Path] = typer.Option(
         None,
         "--output",
         "-o",
-        help="Write YAML to this file. Prints to stdout if omitted.",
+        help="Write YAML to this file (single export). Prints to stdout if omitted.",
+    ),
+    all_templates: bool = typer.Option(
+        False,
+        "--all",
+        help="Export every template from Zabbix to configs/templates/<slug>.yaml",
+    ),
+    out_dir: Path = typer.Option(
+        Path("configs/templates"),
+        "--out-dir",
+        "-d",
+        help="Output directory for --all (default: configs/templates).",
     ),
     env_file: Path = typer.Option(
         Path(".env"), "--env-file", "-e", help="Path to .env file with Zabbix credentials."
     ),
 ) -> None:
-    """Export a Zabbix template to YAML format (for migrating to Git)."""
-    loader = ConfigLoader()
+    """Export a Zabbix template (or every template) to YAML format."""
+    if not all_templates and name is None:
+        formatter.print_error("Provide a template name or use --all to export every template.")
+        raise typer.Exit(1)
 
+    loader = ConfigLoader()
     try:
         settings = loader.load_settings(env_file)
     except EnvironmentError as exc:
@@ -56,7 +78,12 @@ def export_cmd(
 
     try:
         with ZabbixClient(settings) as client:
-            matches = client.find_templates(name)
+            if all_templates:
+                _export_all(client, out_dir)
+                return
+
+            # ── single-template export ──────────────────────────────────────
+            matches = client.find_templates(name)  # type: ignore[arg-type]
 
             if not matches:
                 formatter.print_error(f"No template found matching '{name}'.")
@@ -86,9 +113,62 @@ def export_cmd(
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(yaml_text)
-        console.print(f"[green]ok Exported '{template.template}' to {output}[/green]")
+        console.print(f"[green]✓ Exported '{template.template}' → {output}[/green]")
     else:
         print(yaml_text, end="")
+
+
+def _export_all(client: ZabbixClient, out_dir: Path) -> None:
+    """Fetch and export every template; write one YAML per template."""
+    all_tpls = client.get_all_templates()
+    if not all_tpls:
+        console.print("[yellow]No templates found in Zabbix.[/yellow]")
+        return
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ok: list[str] = []
+    errors: list[tuple[str, str]] = []
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Exporting templates…", total=len(all_tpls))
+        for tpl in all_tpls:
+            progress.update(task, description=f"Exporting {tpl['host']!r}…")
+            try:
+                raw = client.export_template_raw(tpl["templateid"])
+                if raw is None:
+                    errors.append((tpl["host"], "empty response"))
+                    continue
+                template = _raw_to_template(raw)
+                yaml_text = _template_to_yaml(template)
+                dest = out_dir / f"{_slug(tpl['host'])}.yaml"
+                dest.write_text(yaml_text)
+                ok.append(tpl["host"])
+            except Exception as exc:  # noqa: BLE001
+                errors.append((tpl["host"], str(exc)))
+            finally:
+                progress.advance(task)
+
+    # Summary table
+    table = Table(title="Export summary", show_header=True)
+    table.add_column("Status", style="bold")
+    table.add_column("Count", justify="right")
+    table.add_row("[green]Exported[/green]", str(len(ok)))
+    if errors:
+        table.add_row("[red]Errors[/red]", str(len(errors)))
+    console.print(table)
+
+    if errors:
+        console.print("[red]Errors:[/red]")
+        for name, reason in errors:
+            console.print(f"  • {name}: {reason}")
+    else:
+        console.print(f"[green]All {len(ok)} templates exported to {out_dir}/[/green]")
 
 
 # ---------------------------------------------------------------------------

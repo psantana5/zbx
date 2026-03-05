@@ -1,22 +1,37 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "zbx"
-version = "0.1.0"
+name = "zbx-tool"
+version = "0.2.0"
 description = "Zabbix configuration as code — manage monitoring via Git"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-keywords = ["zabbix", "monitoring", "infrastructure-as-code", "devops"]
+keywords = ["zabbix", "monitoring", "infrastructure-as-code", "devops", "gitops"]
+authors = [{ name = "Pau Santana", email = "pausantanapi2@gmail.com" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
 ]
+
+[project.urls]
+Homepage = "https://github.com/psantana5/zbx"
+Repository = "https://github.com/psantana5/zbx"
+"Bug Tracker" = "https://github.com/psantana5/zbx/issues"
+Changelog = "https://github.com/psantana5/zbx/blob/main/CHANGELOG.md"
+
 dependencies = [
     "typer[all]>=0.12",
     "requests>=2.31",
@@ -34,6 +49,8 @@ dev = [
     "responses>=0.25",
     "mypy>=1.8",
     "ruff>=0.3",
+    "build>=1.0",
+    "twine>=5.0",
 ]
 
 [project.scripts]
@@ -42,6 +59,9 @@ zbx = "zbx.cli:app"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["zbx*"]
+
+[tool.setuptools.package-data]
+zbx = ["py.typed"]
 
 [tool.ruff]
 line-length = 100
@@ -54,3 +74,7 @@ select = ["E", "F", "I", "UP"]
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"

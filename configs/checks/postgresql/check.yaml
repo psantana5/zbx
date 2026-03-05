@@ -1,0 +1,132 @@
+# postgresql check
+#
+# Monitors PostgreSQL database health using the check_postgresql.py UserParameter script.
+# Deploy the script first:
+#   sudo cp scripts/check_postgresql.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_postgresql.py
+#   pip install psycopg2-binary
+#
+# Add to Zabbix agent config (/etc/zabbix/zabbix_agentd.conf):
+#   UserParameter=postgresql.stat[*],/usr/local/zbx/scripts/check_postgresql.py $1 "$2"
+#
+# Deploy this template:
+#   zbx validate configs/checks/postgresql/
+#   zbx plan    configs/checks/postgresql/
+#   zbx apply   configs/checks/postgresql/
+#
+# Then link to a host via inventory.yaml (templates: [postgresql])
+
+template: postgresql
+name: "PostgreSQL"
+description: "PostgreSQL database health: connections, transaction rate, deadlocks, replication"
+groups:
+  - Templates
+  - Templates/Databases
+
+items:
+  - name: PostgreSQL ping
+    key: "postgresql.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 if PostgreSQL is reachable, 0 otherwise"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: Active connections
+    key: "postgresql.stat[connections.active]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of active client connections"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: Idle connections
+    key: "postgresql.stat[connections.idle]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of idle client connections"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: "Database size (postgres)"
+    key: "postgresql.stat[db.size,postgres]"
+    interval: 5m
+    value_type: unsigned
+    units: B
+    description: "Size of the 'postgres' database in bytes"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: "Transactions committed (postgres)"
+    key: "postgresql.stat[db.commits,postgres]"
+    interval: 60s
+    value_type: unsigned
+    description: "Cumulative committed transactions"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: "Transactions rolled back (postgres)"
+    key: "postgresql.stat[db.rollbacks,postgres]"
+    interval: 60s
+    value_type: unsigned
+    description: "Cumulative rolled-back transactions"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: "Deadlocks (postgres)"
+    key: "postgresql.stat[db.deadlocks,postgres]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total deadlocks detected in postgres database"
+    tags:
+      - tag: component
+        value: postgresql
+
+  - name: Replication lag
+    key: "postgresql.stat[replication.lag]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Replication lag in bytes (0 on primary)"
+    tags:
+      - tag: component
+        value: postgresql
+
+triggers:
+  - name: PostgreSQL is unreachable
+    expression: "last(/postgresql/postgresql.stat[ping]) = 0"
+    severity: high
+    description: "PostgreSQL is not responding. Check the service and logs."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: High number of active connections (> 90)
+    expression: "last(/postgresql/postgresql.stat[connections.active]) > 90"
+    severity: average
+    description: "Active connection count is high. Check for slow queries or connection leaks."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: Deadlocks detected
+    expression: "change(/postgresql/postgresql.stat[db.deadlocks,postgres]) > 0"
+    severity: warning
+    description: "New deadlocks detected in the postgres database."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: High replication lag (> 100 MB)
+    expression: "last(/postgresql/postgresql.stat[replication.lag]) > 104857600"
+    severity: average
+    description: "Replication is falling behind by more than 100 MB."
+    tags:
+      - tag: scope
+        value: availability

@@ -1,0 +1,75 @@
+# ssl-cert check
+#
+# Monitors SSL/TLS certificate expiry for any HTTPS endpoint.
+# Uses only Python stdlib — no extra dependencies.
+#
+# Deploy the script:
+#   sudo cp scripts/check_ssl.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_ssl.py
+#
+# Add to Zabbix agent config:
+#   UserParameter=ssl.cert[*],/usr/local/zbx/scripts/check_ssl.py $1 "$2"
+#
+# The template uses LLD to discover hosts from a JSON list.
+# For a quick single-host check, you can also create an item manually
+# using key: ssl.cert[days_remaining,example.com:443]
+#
+# Deploy:
+#   zbx apply configs/checks/ssl-cert/
+#
+# Then in your inventory.yaml, add macros to list the endpoints:
+#   macros:
+#     - macro: "{$SSL_HOSTS}"
+#       value: "github.com:443,example.com:443"
+
+template: ssl-cert
+name: "SSL Certificate"
+description: "SSL/TLS certificate expiry monitoring for HTTPS endpoints"
+groups:
+  - Templates
+  - Templates/Network
+
+items:
+  - name: "SSL certificate days remaining: {HOST.NAME}"
+    key: "ssl.cert[days_remaining,{HOST.NAME}:443]"
+    interval: 1h
+    value_type: unsigned
+    units: d
+    description: "Days until the SSL certificate on this host expires"
+    tags:
+      - tag: component
+        value: ssl
+
+  - name: "SSL certificate valid: {HOST.NAME}"
+    key: "ssl.cert[valid,{HOST.NAME}:443]"
+    interval: 1h
+    value_type: unsigned
+    description: "1 if the certificate is valid today, 0 if expired"
+    tags:
+      - tag: component
+        value: ssl
+
+triggers:
+  - name: "SSL certificate expires in less than 30 days"
+    expression: "last(/ssl-cert/ssl.cert[days_remaining,{HOST.NAME}:443]) < 30"
+    severity: warning
+    description: "SSL certificate will expire within 30 days. Renew now."
+    tags:
+      - tag: scope
+        value: security
+
+  - name: "SSL certificate expires in less than 7 days (critical)"
+    expression: "last(/ssl-cert/ssl.cert[days_remaining,{HOST.NAME}:443]) < 7"
+    severity: high
+    description: "SSL certificate expires within 7 days! Services will break on expiry."
+    tags:
+      - tag: scope
+        value: security
+
+  - name: "SSL certificate is expired"
+    expression: "last(/ssl-cert/ssl.cert[valid,{HOST.NAME}:443]) = 0"
+    severity: disaster
+    description: "SSL certificate has expired. HTTPS is broken for this host."
+    tags:
+      - tag: scope
+        value: security
