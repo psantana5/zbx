@@ -280,17 +280,24 @@ class ZabbixClient:
             "expandExpression": True,
             "inherited": False,
         })
-        # Enrich discovery rules with their filter conditions
+        # Enrich discovery rules with their filter conditions and existing prototypes
         if tmpl.get("discoveryRules"):
             rule_ids = [r["itemid"] for r in tmpl["discoveryRules"]]
             rules_with_filter = self._call("discoveryrule.get", {
                 "itemids": rule_ids,
                 "output": ["itemid"],
                 "selectFilter": "extend",
+                "selectItems": ["itemid", "name", "key_"],
+                "selectTriggers": ["triggerid", "description"],
             })
-            filter_by_id = {r["itemid"]: r.get("filter", {}) for r in rules_with_filter}
-            for rule in tmpl["discoveryRules"]:
-                rule["filter"] = filter_by_id.get(rule["itemid"], {})
+            for r in rules_with_filter:
+                rid = r["itemid"]
+                for rule in tmpl["discoveryRules"]:
+                    if rule["itemid"] == rid:
+                        rule["filter"] = r.get("filter", {})
+                        rule["itemPrototypes"] = r.get("items", [])
+                        rule["triggerPrototypes"] = r.get("triggers", [])
+                        break
         return tmpl
 
     def create_template(

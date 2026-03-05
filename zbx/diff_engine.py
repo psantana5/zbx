@@ -348,6 +348,23 @@ class DiffEngine:
                 current_filter_raw = cur.get("filter", {})
                 current_filter = self._filter_sig_from_raw(current_filter_raw)
                 self._chk(field_changes, "filter", current_filter, desired_filter)
+                # Compare item prototype key sets
+                current_proto_keys = {p["key_"] for p in cur.get("itemPrototypes", [])}
+                desired_proto_keys = {p.key for p in rule.item_prototypes}
+                if current_proto_keys != desired_proto_keys:
+                    new_keys = desired_proto_keys - current_proto_keys
+                    removed_keys = current_proto_keys - desired_proto_keys
+                    sig_old = ",".join(sorted(current_proto_keys))
+                    sig_new = ",".join(sorted(desired_proto_keys))
+                    if new_keys or removed_keys:
+                        field_changes.append(FieldChange("item_prototypes", sig_old, sig_new))
+                # Compare trigger prototype name sets
+                current_tp_names = {t["description"] for t in cur.get("triggerPrototypes", [])}
+                desired_tp_names = {t.name for t in rule.trigger_prototypes}
+                if current_tp_names != desired_tp_names:
+                    sig_old = ",".join(sorted(current_tp_names))
+                    sig_new = ",".join(sorted(desired_tp_names))
+                    field_changes.append(FieldChange("trigger_prototypes", sig_old, sig_new))
                 changes.append(
                     ResourceChange(
                         type=ChangeType.MODIFY if field_changes else ChangeType.UNCHANGED,

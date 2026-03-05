@@ -48,6 +48,7 @@ class ScriptStatus:
     exists: bool
     content_matches: bool
     owner_matches: bool
+    local_missing: bool = False
 
 
 @dataclass
@@ -66,7 +67,8 @@ class AgentDiff:
     @property
     def has_changes(self) -> bool:
         return (
-            any(not s.content_matches or not s.owner_matches for s in self.scripts)
+            any((not s.content_matches or not s.owner_matches) and not s.local_missing
+                for s in self.scripts)
             or any(not u.content_matches for u in self.userparameters)
         )
 
@@ -261,7 +263,8 @@ class AgentDeployer:
             if not local_path.exists():
                 log.warning("Local script not found: %s", local_path)
                 result.scripts.append(
-                    ScriptStatus(s.source, s.dest, exists=False, content_matches=False, owner_matches=False)
+                    ScriptStatus(s.source, s.dest, exists=False, content_matches=False,
+                                 owner_matches=False, local_missing=True)
                 )
                 continue
             remote_hash = self._sha256_of_path(s.dest)

@@ -113,7 +113,9 @@ def _print_diff(d: AgentDiff) -> None:
         return
 
     for s in d.scripts:
-        if s.content_matches and s.owner_matches:
+        if s.local_missing:
+            rprint(f"  [red]! (missing)  {s.source}[/red]  — local file not found, skipping")
+        elif s.content_matches and s.owner_matches:
             rprint(f"  [dim]  (unchanged) {s.dest}[/dim]")
         elif not s.exists:
             rprint(f"  [green]+ (create)   {s.dest}[/green]  ← {s.source}")

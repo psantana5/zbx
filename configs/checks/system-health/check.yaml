@@ -248,6 +248,16 @@ discovery_rules:
           - tag: component
             value: storage
 
+      - name: "{#FSNAME}: total size"
+        key: "vfs.fs.size[{#FSNAME},total]"
+        interval: 1h
+        value_type: unsigned
+        units: B
+        description: "Total size of filesystem {#FSNAME}"
+        tags:
+          - tag: component
+            value: storage
+
     trigger_prototypes:
       - name: "{#FSNAME}: disk space below 10%"
         expression: "last(/system-health/vfs.fs.size[{#FSNAME},pfree]) < 10"

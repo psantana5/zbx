@@ -351,7 +351,7 @@ class Deployer:
             self._create_discovery_rule(templateid, rule)
         elif rc.type == ChangeType.MODIFY:
             rule = self._find_rule(template, rc.key)
-            self._update_discovery_rule(rc.resource_id, rule)
+            self._update_discovery_rule(rc.resource_id, rule, templateid)
         elif rc.type == ChangeType.REMOVE:
             logger.warning(
                 "Discovery rule '%s' exists in Zabbix but is absent from config — skipping.",
@@ -402,7 +402,7 @@ class Deployer:
         for tp in rule.trigger_prototypes:
             self._create_trigger_prototype(tp)
 
-    def _update_discovery_rule(self, ruleid: str, rule: DiscoveryRule) -> None:
+    def _update_discovery_rule(self, ruleid: str, rule: DiscoveryRule, templateid: str) -> None:
         kwargs: dict[str, Any] = dict(
             name=rule.name,
             delay=rule.interval,
@@ -418,6 +418,27 @@ class Deployer:
             }
         self._client.update_discovery_rule(ruleid, **kwargs)
         logger.info("  ~ discovery rule '%s'", rule.name)
+        # Sync item prototypes: create any missing by key
+        existing_protos = self._client.get_item_prototypes(ruleid)
+        existing_keys = {p["key_"]: p["itemid"] for p in existing_protos}
+        key_to_itemid: dict[str, str] = dict(existing_keys)
+        for proto in rule.item_prototypes:
+            if proto.key not in existing_keys and proto.type != ItemType.dependent:
+                pid = self._create_item_prototype(ruleid, templateid, proto)
+                key_to_itemid[proto.key] = pid
+        for proto in rule.item_prototypes:
+            if proto.key not in existing_keys and proto.type == ItemType.dependent:
+                if proto.master_item_key and proto.master_item_key in key_to_itemid:
+                    self._create_item_prototype(ruleid, templateid, proto,
+                                                master_itemid=key_to_itemid[proto.master_item_key])
+                else:
+                    logger.warning("  ! Dependent prototype '%s' missing master — skipped.", proto.name)
+        # Sync trigger prototypes: create any missing by name
+        existing_tps = self._client.get_trigger_prototypes(ruleid)
+        existing_tp_names = {t["description"] for t in existing_tps}
+        for tp in rule.trigger_prototypes:
+            if tp.name not in existing_tp_names:
+                self._create_trigger_prototype(tp)
 
     def _create_item_prototype(
         self, ruleid: str, templateid: str, proto: ItemPrototype,
