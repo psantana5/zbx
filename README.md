@@ -313,8 +313,19 @@ at startup (hidden input) and use it for all writes to `/etc/zabbix/`.
 
 ```bash
 zbx inventory list                      # table of all hosts in Zabbix
-zbx inventory apply inventory.yaml      # create or update hosts
+zbx inventory apply inventory.yaml      # create or update hosts + macros
 zbx inventory apply inventory.yaml --dry-run
+```
+
+Macro diff output example:
+```
+~ host: webserver01  (macros (+{$CPU_THRESHOLD}, ~{$MEM_THRESHOLD}))
+
+  Inventory Summary
+  1 to update
+    + macro {$CPU_THRESHOLD} on 'webserver01'
+    ~ macro {$MEM_THRESHOLD} on 'webserver01'
+ok Inventory applied: 0 created, 1 updated.
 ```
 
 ### zbx agent
@@ -516,7 +527,55 @@ groups:
   - Linux servers
 description: "Optional description"
 status: enabled            # enabled or disabled
+templates:
+  - linux-observability    # pre-link templates at host creation time
+macros:
+  - macro: "{$CPU_THRESHOLD}"
+    value: "90"
+    description: "CPU alert threshold (%)"
+  - macro: "{$MEM_THRESHOLD}"
+    value: "80"
+    description: "Memory alert threshold (%)"
 ```
+
+Macros are applied idempotently: `zbx inventory apply` creates missing macros,
+updates changed values, and skips unchanged ones. Running it twice produces
+the same result.
+
+---
+
+## Bundled Community Checks
+
+zbx ships with 5 ready-to-use monitoring checks under `configs/checks/`.
+Each includes a Zabbix template **and** an `agent:` block so the script and
+UserParameter can be deployed with a single command.
+
+| Check | Folder | Keys |
+|---|---|---|
+| PostgreSQL | `configs/checks/postgresql/` | `postgresql.stat[ping]`, `postgresql.stat[connections.active]`, … |
+| Redis | `configs/checks/redis/` | `redis.stat[ping]`, `redis.stat[connected_clients]`, … |
+| Nginx | `configs/checks/nginx/` | `nginx.stat[ping]`, `nginx.stat[active]`, … |
+| Docker | `configs/checks/docker/` | `docker.stat[ping]`, `docker.stat[containers.running]`, … |
+| SSL cert | `configs/checks/ssl-cert/` | `ssl.cert[days_remaining,host:443]`, `ssl.cert[valid,host:443]` |
+
+**Deploy a check end-to-end:**
+
+```bash
+# 1. Apply the template to Zabbix
+zbx apply configs/checks/postgresql/
+
+# 2. Preview what the agent deploy would do
+zbx agent diff myhost --from-check configs/checks/postgresql/
+
+# 3. Deploy script + UserParameter to the monitored host
+zbx agent deploy myhost --from-check configs/checks/postgresql/
+
+# 4. Verify the keys are working
+zbx agent test myhost --from-check configs/checks/postgresql/
+```
+
+Scripts are installed to `/usr/local/zbx/scripts/` and UserParameters are
+written to `/etc/zabbix/zabbix_agentd.d/zbx-<check>.conf`.
 
 ---
 
@@ -539,8 +598,9 @@ zbx/
 │       ├── plan.py         zbx plan
 │       ├── diff.py         zbx diff
 │       ├── validate.py     zbx validate
-│       ├── export.py       zbx export
+│       ├── export.py       zbx export / zbx export --all
 │       ├── scaffold.py     zbx scaffold
+│       ├── schema.py       zbx schema (field reference / JSON Schema)
 │       ├── inventory.py    zbx inventory list / apply
 │       └── agent.py        zbx agent diff / deploy / test
 ├── configs/
@@ -549,9 +609,13 @@ zbx/
 │   │   └── nginx.yaml
 │   ├── checks/             Self-contained monitoring checks
 │   │   ├── CONTRIBUTING.md   How to add a new check
-│   │   └── s3-monitoring/    Reference example
-│   │       ├── check.yaml      template + agent deployment block
-│   │       └── README.md
+│   │   ├── postgresql/       PostgreSQL monitoring (agent block included)
+│   │   ├── redis/            Redis monitoring (agent block included)
+│   │   ├── nginx/            Nginx stub_status monitoring (agent block included)
+│   │   ├── docker/           Docker daemon monitoring (agent block included)
+│   │   ├── ssl-cert/         SSL certificate expiry (agent block included)
+│   │   ├── system-health/    CPU / memory / disk (built-in agent keys, no script)
+│   │   └── s3-monitoring/    Reference example with custom script
 │   └── hosts/              Host playbook YAML files
 │       └── zabbixtest3100.yaml
 ├── scripts/                Agent scripts (legacy; prefer configs/checks/ for new work)
