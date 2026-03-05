@@ -15,6 +15,7 @@ from rich.logging import RichHandler
 
 from zbx import __version__
 from zbx.commands.apply import apply_cmd
+from zbx.commands.agent import app as agent_app
 from zbx.commands.diff import diff_cmd
 from zbx.commands.export import export_cmd
 from zbx.commands.inventory import app as inventory_app
@@ -45,6 +46,7 @@ app.command("diff", help="Show differences between local config and Zabbix.")(di
 app.command("validate", help="Validate YAML files against the schema.")(validate_cmd)
 app.command("export", help="Export a Zabbix template to YAML (for Git migration).")(export_cmd)
 app.add_typer(inventory_app, name="inventory", help="Manage host inventory (list, apply).")
+app.add_typer(agent_app, name="agent", help="Deploy scripts and UserParameters to hosts.")
 
 
 # ---------------------------------------------------------------------------

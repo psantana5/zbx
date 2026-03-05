@@ -5,12 +5,12 @@
 # what host groups they belong to, and how the Zabbix agent connects.
 #
 # Workflow:
-#   zbx inventory list              # see what Zabbix currently has
-#   zbx inventory apply inventory.yaml --dry-run   # preview changes
-#   zbx inventory apply inventory.yaml             # create/update hosts
-#
-# After hosts exist, link templates and set macros using host playbooks:
-#   zbx apply configs/hosts/
+#   zbx inventory list                      # see what Zabbix currently has
+#   zbx inventory apply inventory.yaml      # create/update hosts in Zabbix
+#   zbx agent diff   zabbixtest3100         # preview agent-side changes
+#   zbx agent deploy zabbixtest3100         # deploy scripts + userparams via SSH
+#   zbx agent test   zabbixtest3100         # verify keys with zabbix_agentd -t
+#   zbx apply configs/hosts/                # link templates + set macros
 
 hosts:
   - host: zabbixtest3100
@@ -23,12 +23,43 @@ hosts:
     description: "Primary S3 monitoring test host"
     status: enabled
 
-  # Add more hosts here, for example:
-  # - host: webserver01
-  #   name: "Web Server 01"
-  #   ip: 192.168.1.101
-  #   port: 10050
-  #   groups:
-  #     - Linux servers
-  #     - Web servers
-  #   status: enabled
+    # -----------------------------------------------------------------------
+    # Agent-side deployment (scripts + UserParameters)
+    # Equivalent to the manual steps:
+    #   sudo chown zabbix:zabbix /usr/local/scripts/zabbix/getS3Storage.py
+    #   vi /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
+    # -----------------------------------------------------------------------
+    agent:
+      ssh_user: sanpau         # SSH user — must have sudo rights
+      ssh_port: 22
+      sudo: true               # use sudo for chown + writing to /etc/zabbix/
+
+      # Scripts to copy from this repo to the remote host.
+      # zbx compares SHA-256; only re-deploys when content differs.
+      scripts:
+        - source: scripts/getS3Storage.py   # relative to repo root
+          dest: /usr/local/scripts/zabbix/getS3Storage.py
+          owner: zabbix
+          group: zabbix
+          mode: "0755"
+
+      # UserParameter .conf files to write on the remote host.
+      # These generate the content automatically — no manual editing.
+      userparameters:
+        - name: s3monitor
+          # path defaults to /etc/zabbix/zabbix_agentd.d/s3monitor.conf
+          # override with: path: /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
+          path: /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
+          parameters:
+            - key: s3.user.discover
+              command: /usr/local/scripts/zabbix/getS3Storage.py
+            - key: "s3.user.metrics[*]"
+              command: /usr/local/scripts/zabbix/getS3Storage.py $1 $2 $3
+
+      restart_agent: false     # set true to restart zabbix-agentd after deploy
+
+      # Keys to verify with `zabbix_agentd -t` after deploy
+      # (also used by `zbx agent test`)
+      test_keys:
+        - s3.user.discover
+

@@ -264,6 +264,54 @@ class HostStatus(str, Enum):
         return cls.enabled if value == 0 else cls.disabled
 
 
+# ---------------------------------------------------------------------------
+# Agent configuration — deploy scripts and UserParameters to monitored hosts
+# ---------------------------------------------------------------------------
+
+
+class UserParameter(BaseModel):
+    """A single UserParameter line: key → shell command."""
+
+    key: str        # e.g. s3.user.discover  or  s3.user.metrics[*]
+    command: str    # e.g. /usr/local/scripts/zabbix/getS3Storage.py $1 $2 $3
+
+
+class UserParametersFile(BaseModel):
+    """One .conf file dropped into zabbix_agentd.d/."""
+
+    name: str                              # logical name, used for the filename if path omitted
+    path: Optional[str] = None             # absolute path on remote host; defaults to
+                                           # /etc/zabbix/zabbix_agentd.d/<name>.conf
+    parameters: list[UserParameter] = Field(default_factory=list)
+
+    @property
+    def remote_path(self) -> str:
+        return self.path or f"/etc/zabbix/zabbix_agentd.d/{self.name}.conf"
+
+
+class ScriptDeploy(BaseModel):
+    """A script file to copy from the local repo to the remote host."""
+
+    source: str          # path relative to the repo root, e.g. scripts/getS3Storage.py
+    dest: str            # absolute path on the remote host
+    owner: str = "zabbix"
+    group: str = "zabbix"
+    mode: str = "0755"   # chmod-style octal string
+
+
+class AgentConfig(BaseModel):
+    """SSH-based agent deployment config attached to an inventory host."""
+
+    ssh_user: str = "root"
+    ssh_port: int = 22
+    ssh_key: Optional[str] = None          # path to private key; None = use SSH agent / default key
+    sudo: bool = True                      # use sudo for chown / writing to /etc/zabbix/
+    scripts: list[ScriptDeploy] = Field(default_factory=list)
+    userparameters: list[UserParametersFile] = Field(default_factory=list)
+    restart_agent: bool = False            # restart zabbix-agentd after deploy
+    test_keys: list[str] = Field(default_factory=list)  # keys to test with zabbix_agentd -t
+
+
 class InventoryHost(BaseModel):
     """A single host entry in the inventory."""
 
@@ -277,6 +325,8 @@ class InventoryHost(BaseModel):
     # Optionally pre-link templates right from the inventory entry
     templates: list[str] = Field(default_factory=list)
     macros: list[HostMacro] = Field(default_factory=list)
+    # Agent-side deployment (scripts + userparameters)
+    agent: Optional[AgentConfig] = None
 
     @property
     def display_name(self) -> str:
