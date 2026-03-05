@@ -73,3 +73,18 @@ triggers:
     tags:
       - tag: scope
         value: security
+
+agent:
+  scripts:
+    - source: scripts/check_ssl.py
+      dest: /usr/local/zbx/scripts/check_ssl.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-ssl-cert
+      parameters:
+        - key: "ssl.cert[*]"
+          command: "/usr/local/zbx/scripts/check_ssl.py $1"
+  test_keys:
+    - "ssl.cert[days_remaining,localhost:443]"

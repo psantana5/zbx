@@ -130,3 +130,18 @@ triggers:
     tags:
       - tag: scope
         value: availability
+
+agent:
+  scripts:
+    - source: scripts/check_postgresql.py
+      dest: /usr/local/zbx/scripts/check_postgresql.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-postgresql
+      parameters:
+        - key: "postgresql.stat[*]"
+          command: "/usr/local/zbx/scripts/check_postgresql.py $1"
+  test_keys:
+    - "postgresql.stat[ping]"

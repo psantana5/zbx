@@ -197,6 +197,7 @@ class ZabbixClient:
             "selectHostGroups": ["groupid", "name"],
             "selectParentTemplates": ["templateid", "host", "name"],
             "selectInterfaces": ["interfaceid", "ip", "port", "type", "main"],
+            "selectMacros": ["hostmacroid", "macro", "value", "description"],
         })
         for h in hosts:
             h.setdefault("groups", h.pop("hostgroups", []))

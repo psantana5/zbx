@@ -173,6 +173,10 @@ def inventory_apply(
                     )
                     console.print(f"[green]  + created host '{entry.host}' (id={hid})[/green]")
                     created += 1
+                    # Apply macros to newly created host
+                    for m in entry.macros:
+                        client.create_host_macro(hid, m.macro, m.value, m.description)
+                        console.print(f"[green]    + macro {m.macro}[/green]")
                 else:
                     # Update groups, templates and status if changed
                     cur_groups = {g["groupid"] for g in cur.get("groups", [])}
@@ -194,6 +198,16 @@ def inventory_apply(
                         client._call("host.update", update_payload)  # noqa: SLF001
                         console.print(f"[yellow]  ~ updated host '{entry.host}'[/yellow]")
                         updated += 1
+                    # Apply macros (create new, update changed, skip unchanged)
+                    cur_macros = {m["macro"]: m for m in cur.get("macros", [])}
+                    for m in entry.macros:
+                        existing_macro = cur_macros.get(m.macro)
+                        if existing_macro is None:
+                            client.create_host_macro(cur["hostid"], m.macro, m.value, m.description)
+                            console.print(f"[green]    + macro {m.macro} on '{entry.host}'[/green]")
+                        elif existing_macro["value"] != m.value or existing_macro.get("description", "") != m.description:
+                            client.update_host_macro(str(existing_macro["hostmacroid"]), m.value, m.description)
+                            console.print(f"[yellow]    ~ macro {m.macro} on '{entry.host}'[/yellow]")
     except ZabbixAPIError as exc:
         formatter.print_error(f"Zabbix API: {exc}")
         raise typer.Exit(1) from exc
@@ -216,12 +230,15 @@ def _compute_inventory_diff(
         else:
             cur_groups = {g["name"] for g in cur.get("groups", [])}
             cur_templates = {t["host"] for t in cur.get("parentTemplates", [])}
+            cur_macros = {m["macro"]: m["value"] for m in cur.get("macros", [])}
             desired_groups = set(entry.groups)
             desired_templates = set(entry.templates)
+            desired_macros = {m.macro: m.value for m in entry.macros}
             if (
                 cur_groups != desired_groups
                 or cur_templates != desired_templates
                 or str(entry.status.zabbix_id) != str(cur.get("status", "0"))
+                or cur_macros != desired_macros
             ):
                 changes.append({"action": "update", "entry": entry, "current": cur})
             else:
@@ -256,6 +273,14 @@ def _print_inventory_diff(changes: list[dict]) -> None:
                 parts.append(f"templates ({'; '.join(tmpl_desc)})")
             if str(entry.status.zabbix_id) != str(cur.get("status", "0")):
                 parts.append("status")
+            # Macro diff
+            cur_macros = {m["macro"]: m["value"] for m in cur.get("macros", [])}
+            macro_add = [m for m in entry.macros if m.macro not in cur_macros]
+            macro_upd = [m for m in entry.macros if m.macro in cur_macros and cur_macros[m.macro] != m.value]
+            if macro_add:
+                parts.append(f"macros (+{', '.join(m.macro for m in macro_add)})")
+            if macro_upd:
+                parts.append(f"macros (~{', '.join(m.macro for m in macro_upd)})")
             console.print(
                 f"[bold yellow]  ~ host: {entry.host}[/bold yellow]"
                 f"  [dim]({', '.join(parts) or 'changed'})[/dim]"

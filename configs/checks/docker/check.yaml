@@ -91,3 +91,18 @@ triggers:
     tags:
       - tag: scope
         value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_docker.py
+      dest: /usr/local/zbx/scripts/check_docker.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-docker
+      parameters:
+        - key: "docker.stat[*]"
+          command: "/usr/local/zbx/scripts/check_docker.py $1"
+  test_keys:
+    - "docker.stat[ping]"

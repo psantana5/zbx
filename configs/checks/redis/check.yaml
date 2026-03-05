@@ -147,3 +147,18 @@ triggers:
     tags:
       - tag: scope
         value: availability
+
+agent:
+  scripts:
+    - source: scripts/check_redis.py
+      dest: /usr/local/zbx/scripts/check_redis.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-redis
+      parameters:
+        - key: "redis.stat[*]"
+          command: "/usr/local/zbx/scripts/check_redis.py $1"
+  test_keys:
+    - "redis.stat[ping]"

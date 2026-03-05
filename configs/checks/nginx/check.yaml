@@ -124,3 +124,18 @@ triggers:
     tags:
       - tag: scope
         value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_nginx.py
+      dest: /usr/local/zbx/scripts/check_nginx.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-nginx
+      parameters:
+        - key: "nginx.stat[*]"
+          command: "/usr/local/zbx/scripts/check_nginx.py $1"
+  test_keys:
+    - "nginx.stat[ping]"
