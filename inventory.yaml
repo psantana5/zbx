@@ -1,21 +1,35 @@
 # zbx inventory
 #
 # Defines all hosts managed by zbx — analogous to an Ansible inventory.
-# This file is the single source of truth for what hosts exist in Zabbix,
-# what host groups they belong to, and how the Zabbix agent connects.
+# This is the single source of truth for:
+#   - what hosts exist in Zabbix (groups, IP, port)
+#   - which scripts live on each host and what UserParameters they expose
 #
 # Workflow:
 #   zbx inventory list                      # see what Zabbix currently has
 #   zbx inventory apply inventory.yaml      # create/update hosts in Zabbix
-#   zbx agent diff   zabbixtest3100         # preview agent-side changes
-#   zbx agent deploy zabbixtest3100         # deploy scripts + userparams via SSH
-#   zbx agent test   zabbixtest3100         # verify keys with zabbix_agentd -t
-#   zbx apply configs/hosts/                # link templates + set macros
+#   zbx agent diff   <hostname>             # preview agent-side changes
+#   zbx agent deploy <hostname>             # deploy scripts + write userparams
+#   zbx agent test   <hostname>             # verify keys with zabbix_agentd -t
+#   zbx apply configs/hosts/<hostname>.yaml # link templates + set macros
+#
+# LOCAL HOST NOTE:
+#   If ip is 127.0.0.1 / localhost / ::1, zbx skips SSH entirely and
+#   runs all commands locally via subprocess. No paramiko needed.
+#
+# GENERIC SCRIPTS:
+#   The agent.scripts[] and agent.userparameters[] sections work for ANY
+#   scripts — S3 monitoring, custom app checks, disk scripts, API checks, etc.
+#   Add as many scripts as needed; each is deployed independently.
 
 hosts:
+
+  # -------------------------------------------------------------------------
+  # Example: host running on the same machine (localhost → no SSH)
+  # -------------------------------------------------------------------------
   - host: zabbixtest3100
     name: "Zabbix Test Server 3100"
-    ip: 127.0.0.1
+    ip: 127.0.0.1       # localhost → zbx uses subprocess, skips SSH
     port: 10050
     groups:
       - Linux servers
@@ -23,32 +37,39 @@ hosts:
     description: "Primary S3 monitoring test host"
     status: enabled
 
-    # -----------------------------------------------------------------------
-    # Agent-side deployment (scripts + UserParameters)
-    # Equivalent to the manual steps:
-    #   sudo chown zabbix:zabbix /usr/local/scripts/zabbix/getS3Storage.py
-    #   vi /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
-    # -----------------------------------------------------------------------
     agent:
-      ssh_user: sanpau         # SSH user — must have sudo rights
-      ssh_port: 22
-      sudo: true               # use sudo for chown + writing to /etc/zabbix/
+      ssh_user: sanpau   # ignored for localhost, kept for documentation
+      sudo: true
 
-      # Scripts to copy from this repo to the remote host.
-      # zbx compares SHA-256; only re-deploys when content differs.
+      # -- Scripts -----------------------------------------------------------
+      # Any number of scripts can be listed here.
+      # zbx compares SHA-256; only redeploys when file content changes.
       scripts:
-        - source: scripts/getS3Storage.py   # relative to repo root
+        - source: scripts/getS3Storage.py
           dest: /usr/local/scripts/zabbix/getS3Storage.py
           owner: zabbix
           group: zabbix
           mode: "0755"
 
-      # UserParameter .conf files to write on the remote host.
-      # These generate the content automatically — no manual editing.
+        # Add more scripts as needed, e.g.:
+        # - source: scripts/check_api.py
+        #   dest: /usr/local/scripts/zabbix/check_api.py
+        #   owner: zabbix
+        #   group: zabbix
+        #   mode: "0755"
+        #
+        # - source: scripts/lld-disks.py
+        #   dest: /usr/local/scripts/zabbix/lld-disks.py
+        #   owner: zabbix
+        #   group: zabbix
+        #   mode: "0755"
+
+      # -- UserParameters ----------------------------------------------------
+      # Each entry becomes one .conf file in zabbix_agentd.d/.
+      # Group related parameters together (one file per monitoring domain).
       userparameters:
+
         - name: s3monitor
-          # path defaults to /etc/zabbix/zabbix_agentd.d/s3monitor.conf
-          # override with: path: /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
           path: /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
           parameters:
             - key: s3.user.discover
@@ -56,10 +77,48 @@ hosts:
             - key: "s3.user.metrics[*]"
               command: /usr/local/scripts/zabbix/getS3Storage.py $1 $2 $3
 
-      restart_agent: false     # set true to restart zabbix-agentd after deploy
+        # Add more parameter groups as needed, e.g.:
+        # - name: custom_simple
+        #   path: /etc/zabbix/zabbix_agentd.d/userparameters_custom.conf
+        #   parameters:
+        #     - key: custom.api.health
+        #       command: /usr/local/scripts/zabbix/check_api.py
+        #     - key: "custom.disk.lld"
+        #       command: /usr/local/scripts/zabbix/lld-disks.py
 
-      # Keys to verify with `zabbix_agentd -t` after deploy
-      # (also used by `zbx agent test`)
+      restart_agent: false
+
+      # Keys to verify after deploy (zbx agent test / zbx agent deploy)
       test_keys:
         - s3.user.discover
+
+  # -------------------------------------------------------------------------
+  # Example: remote host reached over SSH
+  # -------------------------------------------------------------------------
+  # - host: webserver01
+  #   name: "Web Server 01"
+  #   ip: 192.168.1.101
+  #   port: 10050
+  #   groups:
+  #     - Linux servers
+  #     - Web servers
+  #   agent:
+  #     ssh_user: sanpau
+  #     ssh_port: 22
+  #     sudo: true
+  #     scripts:
+  #       - source: scripts/check_nginx.sh
+  #         dest: /usr/local/scripts/zabbix/check_nginx.sh
+  #         owner: zabbix
+  #         group: zabbix
+  #         mode: "0755"
+  #     userparameters:
+  #       - name: nginx
+  #         parameters:
+  #           - key: nginx.active_connections
+  #             command: /usr/local/scripts/zabbix/check_nginx.sh connections
+  #           - key: nginx.requests_per_sec
+  #             command: /usr/local/scripts/zabbix/check_nginx.sh rps
+  #     test_keys:
+  #       - nginx.active_connections
 
