@@ -1,0 +1,56 @@
+name: AI Maintainer
+
+# Triggers when an issue is labeled — only proceeds if the label is 'ai-task'.
+# Can also be dispatched manually to re-process a specific issue number.
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to process"
+        required: true
+        type: string
+
+# One run per issue at a time — never cancel an in-progress fix.
+concurrency:
+  group: ai-issue-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write       # create branches + commits
+  pull-requests: write  # open PRs
+  issues: write         # post comments
+
+jobs:
+  ai-fix:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'ai-task'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so branching off main works correctly
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install zbx and AI dependencies
+        run: |
+          pip install -e .
+          pip install "openai>=1.0"
+
+      - name: Run AI maintainer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          ISSUE_TITLE:  ${{ github.event.issue.title }}
+          ISSUE_BODY:   ${{ github.event.issue.body }}
+          REPO:         ${{ github.repository }}
+        run: python .github/scripts/ai_maintainer.py
