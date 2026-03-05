@@ -11,6 +11,8 @@ from zbx.models import (
     Item,
     ItemType,
     ItemValueType,
+    LLDFilter,
+    LLDFilterConditionOperator,
     Template,
     Trigger,
     TriggerSeverity,
@@ -69,9 +71,9 @@ class TemplateDiff:
         counts = {ChangeType.ADD: 0, ChangeType.MODIFY: 0, ChangeType.REMOVE: 0}
         if self.template_change == ChangeType.ADD:
             counts[ChangeType.ADD] += 1
-        elif self.template_change == ChangeType.MODIFY:
-            # Count only modified sub-resources, not the template wrapper itself
-            pass
+        elif self.template_change == ChangeType.MODIFY and self.field_changes:
+            # Template-level field changes (name, description) count as 1 modify
+            counts[ChangeType.MODIFY] += 1
         for rc in self.resource_changes:
             if rc.type in counts:
                 counts[rc.type] += 1
@@ -321,6 +323,11 @@ class DiffEngine:
                 field_changes: list[FieldChange] = []
                 self._chk(field_changes, "name", cur.get("name"), rule.name)
                 self._chk(field_changes, "interval", cur.get("delay"), rule.interval)
+                # Compare filter conditions (serialize to stable string for comparison)
+                desired_filter = self._filter_sig(rule.filter)
+                current_filter_raw = cur.get("filter", {})
+                current_filter = self._filter_sig_from_raw(current_filter_raw)
+                self._chk(field_changes, "filter", current_filter, desired_filter)
                 changes.append(
                     ResourceChange(
                         type=ChangeType.MODIFY if field_changes else ChangeType.UNCHANGED,
@@ -348,6 +355,28 @@ class DiffEngine:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _filter_sig(f: LLDFilter | None) -> str:
+        """Produce a canonical string representation of a desired LLD filter."""
+        if f is None or not f.conditions:
+            return ""
+        parts = sorted(
+            f"{c.macro}:{c.operator.zabbix_id}:{c.value}"
+            for c in f.conditions
+        )
+        return f"{f.evaltype.zabbix_id}|{'|'.join(parts)}"
+
+    @staticmethod
+    def _filter_sig_from_raw(raw: dict[str, Any] | None) -> str:
+        """Produce the same canonical string from a raw Zabbix API filter dict."""
+        if not raw or not raw.get("conditions"):
+            return ""
+        parts = sorted(
+            f"{c['macro']}:{c['operator']}:{c['value']}"
+            for c in raw["conditions"]
+        )
+        return f"{raw.get('evaltype', '0')}|{'|'.join(parts)}"
 
     @staticmethod
     def _chk(

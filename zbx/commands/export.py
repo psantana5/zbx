@@ -17,6 +17,10 @@ from zbx.models import (
     ItemPrototype,
     ItemType,
     ItemValueType,
+    LLDFilter,
+    LLDFilterCondition,
+    LLDFilterConditionOperator,
+    LLDFilterEvalType,
     Template,
     Trigger,
     TriggerPrototype,
@@ -147,12 +151,28 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
             )
             for tp in rule.get("triggerPrototypes", [])
         ]
+        raw_filter = rule.get("filter", {})
+        lld_filter: Optional[LLDFilter] = None
+        if raw_filter and raw_filter.get("conditions"):
+            conditions = [
+                LLDFilterCondition(
+                    macro=c["macro"],
+                    value=c.get("value", ""),
+                    operator=LLDFilterConditionOperator.from_zabbix_id(int(c.get("operator", 8))),
+                )
+                for c in raw_filter["conditions"]
+            ]
+            lld_filter = LLDFilter(
+                evaltype=LLDFilterEvalType.from_zabbix_id(int(raw_filter.get("evaltype", 0))),
+                conditions=conditions,
+            )
         discovery_rules.append(
             DiscoveryRule(
                 name=rule["name"],
                 key=rule["key_"],
                 interval=rule.get("delay", "1h"),
                 type=ItemType.from_zabbix_id(int(rule.get("type", 0))),
+                filter=lld_filter,
                 item_prototypes=prototypes,
                 trigger_prototypes=trig_protos,
             )
@@ -228,6 +248,10 @@ def _template_to_yaml(template: Template) -> str:
         d: dict = {"name": rule.name, "key": rule.key, "interval": rule.interval}  # type: ignore[type-arg]
         if rule.description:
             d["description"] = rule.description
+        if rule.filter and rule.filter.conditions:
+            d["filter"] = [
+                {"macro": c.macro, "value": c.value} for c in rule.filter.conditions
+            ]
         if rule.item_prototypes:
             d["item_prototypes"] = [_proto_dict(p) for p in rule.item_prototypes]
         if rule.trigger_prototypes:

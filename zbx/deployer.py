@@ -364,6 +364,16 @@ class Deployer:
             "type": rule.type.zabbix_id,
             "description": rule.description,
         }
+        if rule.filter and rule.filter.conditions:
+            data["filter"] = {
+                "evaltype": rule.filter.evaltype.zabbix_id,
+                "conditions": [
+                    {"macro": c.macro, "value": c.value, "operator": c.operator.zabbix_id}
+                    for c in rule.filter.conditions
+                ],
+            }
+            if rule.filter.formula:
+                data["filter"]["formula"] = rule.filter.formula
         ruleid = self._client.create_discovery_rule(templateid, data)
         logger.info("  + discovery rule '%s' id=%s", rule.name, ruleid)
 
@@ -391,12 +401,20 @@ class Deployer:
             self._create_trigger_prototype(tp)
 
     def _update_discovery_rule(self, ruleid: str, rule: DiscoveryRule) -> None:
-        self._client.update_discovery_rule(
-            ruleid,
+        kwargs: dict[str, Any] = dict(
             name=rule.name,
             delay=rule.interval,
             type=rule.type.zabbix_id,
         )
+        if rule.filter is not None:
+            kwargs["filter"] = {
+                "evaltype": rule.filter.evaltype.zabbix_id,
+                "conditions": [
+                    {"macro": c.macro, "value": c.value, "operator": c.operator.zabbix_id}
+                    for c in rule.filter.conditions
+                ],
+            }
+        self._client.update_discovery_rule(ruleid, **kwargs)
         logger.info("  ~ discovery rule '%s'", rule.name)
 
     def _create_item_prototype(

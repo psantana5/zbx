@@ -268,6 +268,17 @@ class ZabbixClient:
             "expandExpression": True,
             "inherited": False,
         })
+        # Enrich discovery rules with their filter conditions
+        if tmpl.get("discoveryRules"):
+            rule_ids = [r["itemid"] for r in tmpl["discoveryRules"]]
+            rules_with_filter = self._call("discoveryrule.get", {
+                "itemids": rule_ids,
+                "output": ["itemid"],
+                "selectFilter": "extend",
+            })
+            filter_by_id = {r["itemid"]: r.get("filter", {}) for r in rules_with_filter}
+            for rule in tmpl["discoveryRules"]:
+                rule["filter"] = filter_by_id.get(rule["itemid"], {})
         return tmpl
 
     def create_template(
@@ -454,10 +465,21 @@ class ZabbixClient:
             "expandExpression": True,
             "inherited": False,
         })
-        # Enrich each discovery rule with item prototypes and trigger prototypes
+        # Enrich each discovery rule with item prototypes, trigger prototypes, and filter
         for rule in tmpl.get("discoveryRules", []):
             rule["itemPrototypes"] = self.get_item_prototypes(rule["itemid"])
             rule["triggerPrototypes"] = self.get_trigger_prototypes(rule["itemid"])
+        # Fetch filters separately (selectFilter not valid in selectDiscoveryRules output)
+        rule_ids = [r["itemid"] for r in tmpl.get("discoveryRules", [])]
+        if rule_ids:
+            rules_with_filter = self._call("discoveryrule.get", {
+                "itemids": rule_ids,
+                "output": ["itemid"],
+                "selectFilter": "extend",
+            })
+            filter_by_id = {r["itemid"]: r.get("filter", {}) for r in rules_with_filter}
+            for rule in tmpl.get("discoveryRules", []):
+                rule["filter"] = filter_by_id.get(rule["itemid"], {})
         return tmpl
 
     def find_templates(self, search: str) -> list[dict[str, Any]]:

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +153,26 @@ class ItemValueType(str, Enum):
 # Configuration models
 # ---------------------------------------------------------------------------
 
+# Valid Zabbix interval: digits with optional s/m/h/d/w suffix,
+# user macros {$VAR}, or "0" (disabled). Also allow flexible intervals like "30s;0-7,00:00-24:00".
+_INTERVAL_RE = re.compile(
+    r"^(0|\d+[smhdw]?|"          # plain seconds/minutes/etc or 0
+    r"\{[$#][A-Za-z0-9_\.]+\}|"  # user/LLD macro
+    r"\d+[smhdw]?;.+)$"          # flexible scheduling
+)
+
+
+def _validate_interval(v: object) -> str:
+    s = str(v) if isinstance(v, int) else v  # coerce YAML integers (60 → "60")
+    if not isinstance(s, str):
+        raise ValueError(f"interval must be a string, got {type(v).__name__}")
+    if s and not _INTERVAL_RE.match(s):
+        raise ValueError(
+            f"Invalid interval '{s}'. Use a number with optional suffix (s/m/h/d/w), "
+            "e.g. '60s', '5m', '1h', or '0' to disable."
+        )
+    return s
+
 
 class Tag(BaseModel):
     tag: str
@@ -202,6 +223,11 @@ class Item(BaseModel):
     trends: str = "365d"
     enabled: bool = True
 
+    @field_validator("interval", mode="before")
+    @classmethod
+    def validate_interval(cls, v: object) -> str:
+        return _validate_interval(v)
+
 
 class ItemPrototype(BaseModel):
     """Item prototype inside a Low-Level Discovery rule."""
@@ -217,6 +243,11 @@ class ItemPrototype(BaseModel):
     master_item_key: Optional[str] = None
     preprocessing: list[Preprocessing] = Field(default_factory=list)
 
+    @field_validator("interval", mode="before")
+    @classmethod
+    def validate_interval(cls, v: object) -> str:
+        return _validate_interval(v)
+
 
 class TriggerPrototype(BaseModel):
     """Trigger prototype inside a Low-Level Discovery rule."""
@@ -231,14 +262,70 @@ class TriggerPrototype(BaseModel):
     tags: list[Tag] = Field(default_factory=list)
 
 
+class LLDFilterConditionOperator(str, Enum):
+    matches_regex = "matches_regex"
+    does_not_match_regex = "does_not_match_regex"
+
+    @property
+    def zabbix_id(self) -> int:
+        return {"matches_regex": 8, "does_not_match_regex": 12}[self.value]
+
+    @classmethod
+    def from_zabbix_id(cls, zid: int) -> "LLDFilterConditionOperator":
+        _map = {8: cls.matches_regex, 12: cls.does_not_match_regex}
+        return _map.get(zid, cls.matches_regex)
+
+
+class LLDFilterCondition(BaseModel):
+    macro: str
+    value: str = ""
+    operator: LLDFilterConditionOperator = LLDFilterConditionOperator.matches_regex
+
+
+class LLDFilterEvalType(str, Enum):
+    and_or = "and_or"
+    and_ = "and"
+    or_ = "or"
+    formula = "formula"
+
+    @property
+    def zabbix_id(self) -> int:
+        return {"and_or": 0, "and": 1, "or": 2, "formula": 3}[self.value]
+
+    @classmethod
+    def from_zabbix_id(cls, zid: int) -> "LLDFilterEvalType":
+        _map = {0: cls.and_or, 1: cls.and_, 2: cls.or_, 3: cls.formula}
+        return _map.get(zid, cls.and_or)
+
+
+class LLDFilter(BaseModel):
+    evaltype: LLDFilterEvalType = LLDFilterEvalType.and_or
+    conditions: list[LLDFilterCondition] = Field(default_factory=list)
+    formula: str = ""  # custom formula when evaltype=formula
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_list_shorthand(cls, v: object) -> object:
+        # Allow: filter: [{macro: ..., value: ...}, ...] as shorthand for conditions list
+        if isinstance(v, list):
+            return {"conditions": v}
+        return v
+
+
 class DiscoveryRule(BaseModel):
     name: str
     key: str
     interval: str = "1h"
     type: ItemType = ItemType.zabbix_agent
     description: str = ""
+    filter: Optional[LLDFilter] = None
     item_prototypes: list[ItemPrototype] = Field(default_factory=list)
     trigger_prototypes: list[TriggerPrototype] = Field(default_factory=list)
+
+    @field_validator("interval", mode="before")
+    @classmethod
+    def validate_interval(cls, v: object) -> str:
+        return _validate_interval(v)
 
 
 class Trigger(BaseModel):
