@@ -44,9 +44,8 @@ jobs:
           python-version: "3.11"
 
       - name: Install zbx-tool
-        run: pip install zbx-tool
-        # To use the local repo version instead:
-        # run: pip install -e .
+        run: pip install -e .
+        # Uses local repo checkout — no PyPI release required
 
       - name: Create .env
         run: |
@@ -121,7 +120,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install zbx-tool
-        run: pip install zbx-tool
+        run: pip install -e .
 
       - name: Create .env
         run: |
