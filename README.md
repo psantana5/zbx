@@ -5,7 +5,9 @@ and Git — the same mental model as Terraform or Ansible.
 
 ```
 zbx plan      configs/          See what would change
+zbx plan      configs/ --output plan.json   Save plan to file
 zbx apply     configs/          Apply changes to Zabbix
+zbx apply     --from-plan plan.json         Apply a saved plan (CI/CD gating)
 zbx diff      configs/          Compare local config against Zabbix
 zbx validate  configs/          Validate YAML schema (no Zabbix connection)
 zbx export    linux             Export an existing template to YAML
@@ -13,6 +15,18 @@ zbx export    --all             Export every template to configs/templates/
 zbx schema                      Print YAML field reference (Markdown or JSON Schema)
 zbx scaffold  my-check          Bootstrap a new monitoring check folder
 zbx status                      Show connection status and server summary
+
+zbx host list                   List all hosts in Zabbix
+zbx host create <host> --ip ... Create a host from the CLI
+zbx host delete <host>          Delete a host
+
+zbx hostgroup list              List all host groups
+zbx hostgroup create <name>     Create a host group
+zbx hostgroup delete <name>     Delete an empty host group
+
+zbx macro list                  List all global macros
+zbx macro set {$NAME} value     Create or update a global macro
+zbx macro delete {$NAME}        Delete a global macro
 
 zbx inventory list              List all hosts in Zabbix
 zbx inventory apply inventory.yaml  Create or update hosts in Zabbix
@@ -29,6 +43,7 @@ zbx agent deploy <host> --from-check configs/checks/my-check/
 zbx agent test   <host> --from-check configs/checks/my-check/
 
 zbx --profile staging plan configs/   Use a named environment profile
+zbx --install-completion bash          Enable shell completion (bash/zsh/fish)
 ```
 
 ---
@@ -233,6 +248,13 @@ Shows what would be created, modified or removed. No changes are made.
 Plan: 4 to add, 0 to modify, 0 to remove
 ```
 
+Save the plan to a file for later use (Terraform-style):
+
+```bash
+zbx plan configs/ --output plan.json
+# Plan saved to plan.json. Run zbx apply --from-plan plan.json to apply it.
+```
+
 ### zbx apply
 
 Applies the configuration. Shows the plan first, then prompts for confirmation.
@@ -241,6 +263,17 @@ Applies the configuration. Shows the plan first, then prompts for confirmation.
 zbx apply configs/                    # interactive confirmation
 zbx apply configs/ --auto-approve     # skip confirmation (CI/CD)
 zbx apply configs/ --dry-run          # same as plan
+zbx apply --from-plan plan.json       # apply a previously saved plan
+```
+
+**CI/CD gating pattern (Terraform-style):**
+
+```bash
+# In your review/plan stage:
+zbx plan configs/ --output zbx.plan
+
+# After approval, in your apply stage:
+zbx apply --from-plan zbx.plan --auto-approve
 ```
 
 ### zbx diff
@@ -308,7 +341,7 @@ zbx status
 ```
 
 ```
-zbx version   : 0.3.1
+zbx version   : 0.4.0
 Zabbix URL    : http://zabbix.example.com/zabbix
 API version   : 7.4.7
 Auth user     : Admin
@@ -331,6 +364,52 @@ zbx check install postgresql myhost   # apply template + deploy agent in one com
 ```bash
 zbx apply configs/checks/postgresql/
 zbx agent deploy myhost --from-check configs/checks/postgresql/
+```
+
+### zbx host
+
+Manage Zabbix hosts directly from the CLI without an `inventory.yaml`.
+
+```bash
+zbx host list                                    # table of all hosts
+zbx host list --group "Linux servers"            # filter by group
+zbx host list --templates                        # show linked templates column
+
+zbx host create myserver \
+  --ip 192.168.1.10 \
+  --group "Linux servers" \
+  --template "Linux by Zabbix agent" \
+  --template postgresql                          # link multiple templates
+
+zbx host delete myserver                         # with confirmation prompt
+zbx host delete myserver --force                 # skip confirmation
+```
+
+### zbx hostgroup
+
+Manage host groups.
+
+```bash
+zbx hostgroup list               # all groups
+zbx hostgroup list --hosts       # show host count per group
+zbx hostgroup list --search prod # filter by name
+
+zbx hostgroup create "Production Linux"
+zbx hostgroup delete "Old Group"          # refuses if group has hosts
+```
+
+### zbx macro
+
+Manage global macros (applies to all hosts/templates in Zabbix).
+
+```bash
+zbx macro list                            # all global macros
+zbx macro list --search SLACK             # filter by name
+
+zbx macro set '{$SLACK_WEBHOOK}' 'https://hooks.slack.com/...'
+zbx macro set '{$SNMP_COMMUNITY}' public --description "Default SNMP v2"
+
+zbx macro delete '{$OLD_MACRO}'
 ```
 
 ---
@@ -619,7 +698,7 @@ the same result.
 
 ## Bundled Community Checks
 
-zbx ships with 10 ready-to-use monitoring checks under `configs/checks/`.
+zbx ships with 14 ready-to-use monitoring checks under `configs/checks/`.
 Each includes a Zabbix template **and** an `agent:` block so the script and
 UserParameter can be deployed with a single command.
 
@@ -635,6 +714,10 @@ UserParameter can be deployed with a single command.
 | HAProxy | `configs/checks/haproxy/` | `haproxy.stat[ping]`, `haproxy.stat[active_backends]`, … |
 | Elasticsearch | `configs/checks/elasticsearch/` | `elasticsearch.stat[ping]`, `elasticsearch.stat[status]`, … |
 | Kubernetes node | `configs/checks/kubernetes-node/` | `k8s.node[ping]`, `k8s.node[pods_running]`, … |
+| Windows agent | `configs/checks/windows-agent/` | `system.cpu.util`, `vm.memory.size[available]`, `system.uptime`, … |
+| Apache httpd | `configs/checks/apache-httpd/` | `apache.stat[ping]`, `apache.stat[busy_workers]`, … |
+| MongoDB | `configs/checks/mongodb/` | `mongodb.stat[ping]`, `mongodb.stat[connections.active]`, … |
+| JVM (Jolokia) | `configs/checks/jvm-jolokia/` | `jvm.jolokia[heap.usage_pct]`, `jvm.jolokia[threads.count]`, … |
 
 Browse and install checks interactively:
 
@@ -678,10 +761,11 @@ zbx/
 │   ├── diff_engine.py      Desired vs current state comparison
 │   ├── deployer.py         Apply logic for templates and hosts
 │   ├── agent_deployer.py   SSH/local agent deployment (scripts + UserParameters)
+│   ├── plan_serializer.py  Serialize/deserialize plan diffs to/from JSON
 │   ├── formatter.py        Rich CLI output
 │   └── commands/
-│       ├── apply.py        zbx apply
-│       ├── plan.py         zbx plan
+│       ├── apply.py        zbx apply (--from-plan support)
+│       ├── plan.py         zbx plan (--output support)
 │       ├── diff.py         zbx diff
 │       ├── validate.py     zbx validate
 │       ├── export.py       zbx export / zbx export --all
@@ -690,12 +774,15 @@ zbx/
 │       ├── inventory.py    zbx inventory list / apply (with macro support)
 │       ├── agent.py        zbx agent diff / deploy / test
 │       ├── status.py       zbx status (connection + server summary)
-│       └── check.py        zbx check list / info / install
+│       ├── check.py        zbx check list / info / install
+│       ├── host.py         zbx host list / create / delete
+│       ├── hostgroup.py    zbx hostgroup list / create / delete
+│       └── macro.py        zbx macro list / set / delete
 ├── configs/
 │   ├── templates/          Standalone template YAML files
 │   │   ├── linux-observability.yaml
 │   │   └── nginx.yaml
-│   ├── checks/             Self-contained monitoring checks (10 bundled)
+│   ├── checks/             Self-contained monitoring checks (14 bundled)
 │   │   ├── CONTRIBUTING.md   How to add a new check
 │   │   ├── postgresql/       PostgreSQL monitoring
 │   │   ├── redis/            Redis monitoring
@@ -707,6 +794,10 @@ zbx/
 │   │   ├── haproxy/          HAProxy stats monitoring
 │   │   ├── elasticsearch/    Elasticsearch REST API monitoring
 │   │   ├── kubernetes-node/  Kubernetes node Kubelet monitoring
+│   │   ├── windows-agent/    Windows built-in agent keys (no script)
+│   │   ├── apache-httpd/     Apache mod_status monitoring
+│   │   ├── mongodb/          MongoDB monitoring
+│   │   ├── jvm-jolokia/      JVM monitoring via Jolokia REST API
 │   │   ├── system-health/    CPU / memory / disk (built-in keys, no script)
 │   │   └── s3-monitoring/    Reference example with custom script
 │   └── hosts/              Host playbook YAML files
