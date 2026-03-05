@@ -100,4 +100,4 @@ def apply_cmd(
     formatter.print_apply_result(t_results)
     applied_hosts = [h for h in h_results if h.has_changes]
     if applied_hosts:
-        console.print(f"[green]✓ Configured {len(applied_hosts)} host(s).[/green]")
+        console.print(f"[green]ok Configured {len(applied_hosts)} host(s).[/green]")

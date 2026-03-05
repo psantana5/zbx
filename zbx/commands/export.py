@@ -80,7 +80,7 @@ def export_cmd(
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(yaml_text)
-        console.print(f"[green]✓ Exported '{template.template}' to {output}[/green]")
+        console.print(f"[green]ok Exported '{template.template}' to {output}[/green]")
     else:
         console.print(yaml_text)
 

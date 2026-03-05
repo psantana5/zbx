@@ -27,13 +27,13 @@ def validate_cmd(
     if verbose:
         for tmpl in templates:
             typer.echo(
-                f"  ✓  {tmpl.template:<40}  "
+                f"  ok  {tmpl.template:<40}  "
                 f"{len(tmpl.items)} item(s)  {len(tmpl.triggers)} trigger(s)  "
                 f"{len(tmpl.discovery_rules)} discovery rule(s)"
             )
         for host in hosts:
             typer.echo(
-                f"  ✓  host:{host.host:<35}  "
+                f"  ok  host:{host.host:<35}  "
                 f"{len(host.templates)} template link(s)  {len(host.macros)} macro(s)"
             )
 

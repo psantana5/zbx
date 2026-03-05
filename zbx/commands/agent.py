@@ -69,7 +69,7 @@ def _find_host(inventory_path: Path, hostname: str):
 
 def _print_diff(d: AgentDiff) -> None:
     if not d.has_changes:
-        rprint("[green]✓[/green] Agent is up-to-date — no changes needed.")
+        rprint("[green]OK[/green] Agent is up-to-date — no changes needed.")
         return
 
     for s in d.scripts:
@@ -104,7 +104,7 @@ def agent_diff_cmd(
     """Show what would change on the host agent without applying anything."""
     inv_host = _find_host(inventory, hostname)
     if inv_host.agent is None:
-        rprint(f"[yellow]⚠[/yellow]  No [bold]agent:[/bold] config for '{hostname}' in {inventory}.")
+        rprint(f"[yellow]![/yellow]  No [bold]agent:[/bold] config for '{hostname}' in {inventory}.")
         raise typer.Exit(0)
 
     cfg = inv_host.agent
@@ -139,7 +139,7 @@ def agent_deploy_cmd(
     """Deploy scripts and UserParameters to the host via SSH."""
     inv_host = _find_host(inventory, hostname)
     if inv_host.agent is None:
-        rprint(f"[yellow]⚠[/yellow]  No [bold]agent:[/bold] config for '{hostname}' in {inventory}.")
+        rprint(f"[yellow]![/yellow]  No [bold]agent:[/bold] config for '{hostname}' in {inventory}.")
         rprint("  Add an [bold]agent:[/bold] section to this host entry to enable agent deployment.")
         raise typer.Exit(0)
 
@@ -179,7 +179,7 @@ def agent_deploy_cmd(
             dry_run=False,
         )
 
-        rprint("[green]✓[/green] Agent deploy complete.\n")
+        rprint("[green]OK[/green] Agent deploy complete.\n")
 
         if cfg.restart_agent:
             rprint("[dim]zabbix-agentd restarted.[/dim]")
@@ -207,13 +207,13 @@ def agent_test_cmd(
     """Run zabbix_agentd -t for each key defined in the inventory agent config."""
     inv_host = _find_host(inventory, hostname)
     if inv_host.agent is None:
-        rprint(f"[yellow]⚠[/yellow]  No [bold]agent:[/bold] config for '{hostname}'.")
+        rprint(f"[yellow]![/yellow]  No [bold]agent:[/bold] config for '{hostname}'.")
         raise typer.Exit(0)
 
     cfg = inv_host.agent
     keys_to_test = list(cfg.test_keys) + list(key or [])
     if not keys_to_test:
-        rprint("[yellow]⚠[/yellow]  No test_keys configured. Use --key <key> to test ad-hoc.")
+        rprint("[yellow]![/yellow]  No test_keys configured. Use --key <key> to test ad-hoc.")
         raise typer.Exit(0)
 
     rprint(f"\n[bold]Agent test → [cyan]{hostname}[/cyan] ({inv_host.ip})[/bold]\n")
@@ -235,6 +235,6 @@ def _run_tests(deployer: AgentDeployer, keys: list[str]) -> None:
     table.add_column("Status")
     table.add_column("Output", overflow="fold")
     for k, ok, output in results:
-        status = "[green]✓ OK[/green]" if ok else "[red]✗ FAIL[/red]"
+        status = "[green]OK[/green]" if ok else "[red]FAIL[/red]"
         table.add_row(k, status, output[:200])
     console.print(table)

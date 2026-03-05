@@ -364,7 +364,7 @@ class Deployer:
                     self._create_item_prototype(ruleid, templateid, proto, master_itemid=master_id)
                 else:
                     logger.warning(
-                        "  ⚠ Dependent prototype '%s' references unknown master_item_key '%s' — skipped.",
+                        "  ! Dependent prototype '%s' references unknown master_item_key '%s' — skipped.",
                         proto.name,
                         proto.master_item_key,
                     )

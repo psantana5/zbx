@@ -25,17 +25,17 @@ _SYMBOL = {
     ChangeType.REMOVE: "-",
     ChangeType.UNCHANGED: " ",
 }
-_RESOURCE_EMOJI = {
-    "item": "📦",
-    "trigger": "🔔",
-    "discovery_rule": "🔍",
+_RESOURCE_PREFIX = {
+    "item": "item",
+    "trigger": "trigger",
+    "discovery_rule": "discovery_rule",
 }
 
 
 def print_diff(diffs: list[TemplateDiff], *, title: str = "Plan") -> None:
     """Print a Terraform-style diff for all templates."""
     if not any(d.has_changes for d in diffs):
-        console.print("[green]✓ No changes. Infrastructure is up-to-date.[/green]")
+        console.print("[green]ok No changes. Infrastructure is up-to-date.[/green]")
         return
 
     for diff in diffs:
@@ -82,11 +82,11 @@ def _print_template_diff(diff: TemplateDiff) -> None:
 def _format_resource_change(rc: ResourceChange) -> Text:
     sym = _SYMBOL[rc.type]
     col = _COLOR[rc.type]
-    emoji = _RESOURCE_EMOJI.get(rc.resource_type, "·")
+    prefix = _RESOURCE_PREFIX.get(rc.resource_type, rc.resource_type)
 
     line = Text()
     line.append(f"  {sym} ", style=f"bold {col}")
-    line.append(f"{emoji} {rc.resource_type}: ", style=col)
+    line.append(f"{prefix}: ", style=col)
     line.append(rc.name, style=f"bold {col}")
     if rc.key and rc.key != rc.name:
         line.append(f"  [dim]({rc.key})[/dim]")
@@ -130,7 +130,7 @@ def _print_summary(diffs: list[TemplateDiff], *, title: str) -> None:
 def print_apply_result(diffs: list[TemplateDiff]) -> None:
     applied = [d for d in diffs if d.has_changes]
     if not applied:
-        console.print("[green]✓ Nothing to apply.[/green]")
+        console.print("[green]ok Nothing to apply.[/green]")
         return
 
     table = Table(show_header=True, header_style="bold")
@@ -149,7 +149,7 @@ def print_apply_result(diffs: list[TemplateDiff]) -> None:
         )
 
     console.print(table)
-    console.print("[green]✓ Apply complete.[/green]")
+    console.print("[green]ok Apply complete.[/green]")
 
 
 def print_validate_ok(templates: list, hosts: list | None = None) -> None:
@@ -161,7 +161,7 @@ def print_validate_ok(templates: list, hosts: list | None = None) -> None:
     if h:
         parts.append(f"{h} host config(s)")
     noun = " and ".join(parts) or "0 documents"
-    console.print(f"[green]✓ Validated {noun} — no schema errors.[/green]")
+    console.print(f"[green]ok Validated {noun} — no schema errors.[/green]")
 
 
 def print_host_diff(host_diffs: list[HostDiff], *, title: str = "Plan") -> None:
@@ -169,7 +169,7 @@ def print_host_diff(host_diffs: list[HostDiff], *, title: str = "Plan") -> None:
     for diff in host_diffs:
         if not diff.found:
             console.print(
-                f"[bold yellow]⚠  host '{diff.host_name}' not found in Zabbix — "
+                f"[bold yellow]! host '{diff.host_name}' not found in Zabbix — "
                 "create it first, then run zbx apply again.[/bold yellow]"
             )
             continue
@@ -181,7 +181,7 @@ def print_host_diff(host_diffs: list[HostDiff], *, title: str = "Plan") -> None:
         for tname in diff.templates_to_link:
             line = Text()
             line.append("  + ", style="bold green")
-            line.append("🔗 link template: ", style="green")
+            line.append("link template: ", style="green")
             line.append(tname, style="bold green")
             lines.append(line)
 
@@ -192,7 +192,7 @@ def print_host_diff(host_diffs: list[HostDiff], *, title: str = "Plan") -> None:
             sym = _SYMBOL[mc.type]
             line = Text()
             line.append(f"  {sym} ", style=f"bold {col}")
-            line.append("🔑 macro: ", style=col)
+            line.append("macro: ", style=col)
             line.append(mc.macro, style=f"bold {col}")
             if mc.type == ChangeType.MODIFY:
                 line.append(f"\n      value: ", style="dim")
@@ -210,8 +210,8 @@ def print_host_diff(host_diffs: list[HostDiff], *, title: str = "Plan") -> None:
 
 
 def print_error(message: str) -> None:
-    console.print(f"[bold red]✗ Error:[/bold red] {message}")
+    console.print(f"[bold red]fail Error:[/bold red] {message}")
 
 
 def print_warning(message: str) -> None:
-    console.print(f"[bold yellow]⚠ Warning:[/bold yellow] {message}")
+    console.print(f"[bold yellow]! Warning:[/bold yellow] {message}")

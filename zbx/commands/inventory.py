@@ -73,8 +73,8 @@ def inventory_list(
 
         groups = ", ".join(g["name"] for g in h.get("groups", []))
         templates = ", ".join(t["host"] for t in h.get("parentTemplates", []))
-        status_text = Text("✓ enabled", style="green") if h.get("status") == "0" \
-            else Text("✗ disabled", style="red")
+        status_text = Text("ok enabled", style="green") if h.get("status") == "0" \
+            else Text("fail disabled", style="red")
 
         table.add_row(
             h["host"],
@@ -188,7 +188,7 @@ def inventory_apply(
         formatter.print_error(f"Zabbix API: {exc}")
         raise typer.Exit(1) from exc
 
-    console.print(f"[green]✓ Inventory applied: {created} created, {updated} updated.[/green]")
+    console.print(f"[green]ok Inventory applied: {created} created, {updated} updated.[/green]")
 
 
 # ---------------------------------------------------------------------------
