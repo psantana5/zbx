@@ -39,7 +39,8 @@ def print_diff(diffs: list[TemplateDiff], *, title: str = "Plan") -> None:
         return
 
     for diff in diffs:
-        _print_template_diff(diff)
+        if diff.has_changes:  # skip templates with no changes (avoids empty panels)
+            _print_template_diff(diff)
 
     _print_summary(diffs, title=title)
 
@@ -80,7 +81,11 @@ def _print_template_diff(diff: TemplateDiff) -> None:
         line.append(w, style="yellow")
         lines.append(line)
 
-    body = Text("\n").join(lines) if lines else Text("")
+    if lines:
+        body = Text("\n").join(lines)
+    else:
+        # Template-level change (add/update) but no items/triggers/discovery rules
+        body = Text("  (no items, triggers, or discovery rules)", style="dim")
 
     panel = Panel(body, title=header, title_align="left", border_style=col, padding=(0, 1))
     console.print(panel)

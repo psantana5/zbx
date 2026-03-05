@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +225,27 @@ class Template(BaseModel):
     # to bundle script deployment info alongside the Zabbix template definition.
     # Ignored by `zbx apply`; consumed by `zbx agent deploy --from-check <path>`.
     agent: Optional["AgentConfig"] = None
+
+    @field_validator("template")
+    @classmethod
+    def template_name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("template name must not be empty")
+        return v
+
+    @field_validator("items")
+    @classmethod
+    def no_duplicate_item_keys(cls, items: list) -> list:
+        seen: dict[str, int] = {}
+        for i, item in enumerate(items):
+            key = item.key
+            if key in seen:
+                raise ValueError(
+                    f"Duplicate item key '{key}' at position {i} "
+                    f"(first seen at position {seen[key]})"
+                )
+            seen[key] = i
+        return items
 
     @property
     def display_name(self) -> str:

@@ -183,7 +183,10 @@ def scaffold_cmd(
     target.mkdir(parents=True)
 
     display_name = name.replace("-", " ").replace("_", " ").title()
-    script_name = f"{name.replace('-', '_')}.py"
+    # Normalise script name: spaces and special chars → underscores
+    import re as _re
+    safe_slug = _re.sub(r"[^a-zA-Z0-9_]", "_", name).strip("_")
+    script_name = f"{safe_slug}.py"
 
     (target / "check.yaml").write_text(
         _CHECK_YAML_TEMPLATE.format(

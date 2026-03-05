@@ -83,9 +83,18 @@ class ConfigLoader:
         files = self._collect_files(path)
         templates: list[Template] = []
         hosts: list[Host] = []
+        seen_templates: dict[str, Path] = {}
         for f in files:
             t, h = self._load_file(f)
-            templates.extend(t)
+            for tmpl in t:
+                if tmpl.template in seen_templates:
+                    logger.warning(
+                        "Duplicate template '%s' found in %s (already loaded from %s) — skipping",
+                        tmpl.template, f, seen_templates[tmpl.template],
+                    )
+                    continue
+                seen_templates[tmpl.template] = f
+                templates.append(tmpl)
             hosts.extend(h)
         logger.debug(
             "Loaded %d template(s) and %d host(s) from %s",

@@ -206,7 +206,11 @@ class DiffEngine:
         )
         _chk(changes, "units", current.get("units", ""), desired.units)
         _chk(changes, "history", current.get("history", "90d"), desired.history)
-        _chk(changes, "trends", current.get("trends", "365d"), desired.trends)
+        # char/log/text items can't store trends — deployer forces trends=0 for these types,
+        # so we must apply the same logic here to avoid a perpetual false diff.
+        _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
+        effective_trends = "0" if desired.value_type in _no_trends else desired.trends
+        _chk(changes, "trends", current.get("trends", "365d"), effective_trends)
         return changes
 
     # ------------------------------------------------------------------
