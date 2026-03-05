@@ -257,6 +257,7 @@ class Deployer:
             "history": item.history,
             "trends": item.trends,
             "status": 0 if item.enabled else 1,
+            "params": item.params,
         }
         if item.tags:
             data["tags"] = [{"tag": t.tag, "value": t.value} for t in item.tags]
@@ -275,6 +276,7 @@ class Deployer:
             history=item.history,
             trends=item.trends,
             status=0 if item.enabled else 1,
+            params=item.params,
         )
         logger.info("  ~ item '%s' (%s)", item.name, item.key)
 

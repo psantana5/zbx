@@ -36,9 +36,10 @@ items:
   - name: Nginx requests per second
     key: "nginx.requests.rate"
     type: calculated
+    params: "rate(/nginx/web.page.get[localhost,/nginx_status,80],1m)"
     interval: 60s
     value_type: float
-    description: "HTTP requests per second (derived)"
+    description: "HTTP requests per second derived from nginx_status (1-minute rate)"
     tags:
       - tag: component
         value: nginx

@@ -159,6 +159,7 @@ class Item(BaseModel):
     value_type: ItemValueType = ItemValueType.float
     units: str = ""
     description: str = ""
+    params: str = ""   # formula for calculated items; OID for SNMP; empty otherwise
     tags: list[Tag] = Field(default_factory=list)
     history: str = "90d"
     trends: str = "365d"
