@@ -5,6 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.0] — 2026-03-05
+
+### Added
+- `zbx plan --output plan.json` — save plan to JSON file for later apply
+- `zbx apply --from-plan plan.json` — apply a previously saved plan (CI/CD gating)
+- `zbx host list` — Rich table with IP, groups, status; `--group` filter, `--templates` flag
+- `zbx host create` — create host from CLI args (--ip, --group, --template, --port)
+- `zbx host delete` — delete host with confirmation, warns if templates are linked
+- `zbx macro list` — list all global macros; `--search` filter
+- `zbx macro set` — create or update a global macro (upsert, format validated)
+- `zbx macro delete` — delete a global macro with confirmation
+- `zbx hostgroup list` — list all host groups; `--hosts` count flag
+- `zbx hostgroup create` — create a host group
+- `zbx hostgroup delete` — delete an empty host group (refuses if hosts are members)
+- 4 new bundled checks (14 total):
+  - `windows-agent` — built-in agent keys (CPU, memory, uptime, OS info)
+  - `apache-httpd` — mod_status scraper (stdlib only)
+  - `mongodb` — TCP ping + mongosh fallback (stdlib only)
+  - `jvm-jolokia` — Jolokia REST API (stdlib only, heap/GC/threads/classes)
+- `.github/workflows/tests.yml` — CI runs unit tests on Python 3.11 + 3.12 with coverage
+- `pytest-cov` added to dev dependencies; `[tool.coverage.*]` config in pyproject.toml
+- Shell completion: `zbx --install-completion bash|zsh|fish` (Typer built-in)
+
+### Changed
+- `zbx apply` path argument is now optional when `--from-plan` is used
+
+---
+
 ## [0.3.0] — 2026-03-05
 
 ### Added
