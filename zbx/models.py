@@ -227,7 +227,7 @@ class Template(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Host configuration (template linking + macros)
+# Host configuration (template linking + macros) — the "playbook"
 # ---------------------------------------------------------------------------
 
 
@@ -243,6 +243,50 @@ class Host(BaseModel):
     host: str                                           # technical host name in Zabbix
     templates: list[str] = Field(default_factory=list)  # template names to link
     macros: list[HostMacro] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Inventory — defines hosts that exist (or should exist) in Zabbix
+# Analogous to Ansible inventory
+# ---------------------------------------------------------------------------
+
+
+class HostStatus(str, Enum):
+    enabled = "enabled"
+    disabled = "disabled"
+
+    @property
+    def zabbix_id(self) -> int:
+        return 0 if self.value == "enabled" else 1
+
+    @classmethod
+    def from_zabbix_id(cls, value: int) -> HostStatus:
+        return cls.enabled if value == 0 else cls.disabled
+
+
+class InventoryHost(BaseModel):
+    """A single host entry in the inventory."""
+
+    host: str                          # technical hostname (must be unique in Zabbix)
+    name: Optional[str] = None         # visible display name (defaults to host)
+    ip: str = "127.0.0.1"
+    port: int = 10050
+    groups: list[str] = Field(default_factory=lambda: ["Linux servers"])
+    description: str = ""
+    status: HostStatus = HostStatus.enabled
+    # Optionally pre-link templates right from the inventory entry
+    templates: list[str] = Field(default_factory=list)
+    macros: list[HostMacro] = Field(default_factory=list)
+
+    @property
+    def display_name(self) -> str:
+        return self.name or self.host
+
+
+class Inventory(BaseModel):
+    """Top-level inventory document."""
+
+    hosts: list[InventoryHost] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

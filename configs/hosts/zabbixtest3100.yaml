@@ -9,16 +9,16 @@
 # Or deploy everything at once (templates + host config):
 #   zbx apply configs/
 
-host: zabbixtest3100
+host: Zabbix server
 
 templates:
   - monitoring-s3-users
 
 macros:
   - macro: "{$S3_USER_PASSWORD}"
-    value: "your_s3_password_here"
+    value: "Y5XFtvNVffPyZA=="
     description: "S3 user password passed to getS3Storage.py"
 
   - macro: "{$S3_USER_GROUP}"
-    value: "your_s3_group_here"
+    value: "000311-cdn"
     description: "S3 user group passed to getS3Storage.py"

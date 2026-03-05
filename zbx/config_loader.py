@@ -1,4 +1,4 @@
-"""Load and validate YAML configuration files into Template and Host models."""
+"""Load and validate YAML configuration files into Template, Host and Inventory models."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from zbx.models import Host, Template, ZabbixSettings
+from zbx.models import Host, Inventory, Template, ZabbixSettings
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,20 @@ class ConfigLoader:
     def load_all(self, path: Path) -> tuple[list[Template], list[Host]]:
         """Return (templates, hosts) found at *path*."""
         return self._load_all(path)
+
+    def load_inventory(self, path: Path) -> Inventory:
+        """Load an inventory.yaml file."""
+        try:
+            with path.open() as fh:
+                raw = yaml.safe_load(fh)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Invalid YAML in {path}: {exc}") from exc
+        if raw is None:
+            return Inventory()
+        try:
+            return Inventory.model_validate(raw)
+        except ValidationError as exc:
+            raise ValueError(f"Inventory schema error in {path}:\n{exc}") from exc
 
     def load_settings(self, env_file: Path | None = None) -> ZabbixSettings:
         """Load Zabbix connection settings from environment / .env file."""

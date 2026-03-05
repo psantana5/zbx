@@ -185,6 +185,50 @@ class ZabbixClient:
         return self.ensure_hostgroup(name)
 
     # ------------------------------------------------------------------
+    # Inventory — host listing and creation
+    # ------------------------------------------------------------------
+
+    def list_hosts(self) -> list[dict[str, Any]]:
+        """Return all hosts with their groups, interfaces and linked templates."""
+        return self._call("host.get", {  # type: ignore[return-value]
+            "output": ["hostid", "host", "name", "description", "status"],
+            "selectGroups": ["groupid", "name"],
+            "selectParentTemplates": ["templateid", "host", "name"],
+            "selectInterfaces": ["interfaceid", "ip", "port", "type", "main"],
+        })
+
+    def create_host(
+        self,
+        host: str,
+        name: str,
+        ip: str,
+        port: int,
+        group_ids: list[str],
+        description: str = "",
+        status: int = 0,
+        template_ids: list[str] | None = None,
+    ) -> str:
+        params: dict[str, Any] = {
+            "host": host,
+            "name": name,
+            "description": description,
+            "status": status,
+            "groups": [{"groupid": gid} for gid in group_ids],
+            "interfaces": [{
+                "type": 1,       # Zabbix agent
+                "main": 1,       # default interface
+                "useip": 1,
+                "ip": ip,
+                "dns": "",
+                "port": str(port),
+            }],
+        }
+        if template_ids:
+            params["templates"] = [{"templateid": tid} for tid in template_ids]
+        result = self._call("host.create", params)
+        return str(result["hostids"][0])
+
+    # ------------------------------------------------------------------
     # Templates
     # ------------------------------------------------------------------
 

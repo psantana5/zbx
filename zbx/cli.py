@@ -17,6 +17,7 @@ from zbx import __version__
 from zbx.commands.apply import apply_cmd
 from zbx.commands.diff import diff_cmd
 from zbx.commands.export import export_cmd
+from zbx.commands.inventory import app as inventory_app
 from zbx.commands.plan import plan_cmd
 from zbx.commands.validate import validate_cmd
 
@@ -43,6 +44,7 @@ app.command("plan", help="Show what changes would be applied (dry run).")(plan_c
 app.command("diff", help="Show differences between local config and Zabbix.")(diff_cmd)
 app.command("validate", help="Validate YAML files against the schema.")(validate_cmd)
 app.command("export", help="Export a Zabbix template to YAML (for Git migration).")(export_cmd)
+app.add_typer(inventory_app, name="inventory", help="Manage host inventory (list, apply).")
 
 
 # ---------------------------------------------------------------------------

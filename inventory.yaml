@@ -1,0 +1,34 @@
+# zbx inventory
+#
+# Defines all hosts managed by zbx — analogous to an Ansible inventory.
+# This file is the single source of truth for what hosts exist in Zabbix,
+# what host groups they belong to, and how the Zabbix agent connects.
+#
+# Workflow:
+#   zbx inventory list              # see what Zabbix currently has
+#   zbx inventory apply inventory.yaml --dry-run   # preview changes
+#   zbx inventory apply inventory.yaml             # create/update hosts
+#
+# After hosts exist, link templates and set macros using host playbooks:
+#   zbx apply configs/hosts/
+
+hosts:
+  - host: zabbixtest3100
+    name: "Zabbix Test Server 3100"
+    ip: 127.0.0.1
+    port: 10050
+    groups:
+      - Linux servers
+      - S3 Monitoring
+    description: "Primary S3 monitoring test host"
+    status: enabled
+
+  # Add more hosts here, for example:
+  # - host: webserver01
+  #   name: "Web Server 01"
+  #   ip: 192.168.1.101
+  #   port: 10050
+  #   groups:
+  #     - Linux servers
+  #     - Web servers
+  #   status: enabled
