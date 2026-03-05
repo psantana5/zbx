@@ -255,7 +255,7 @@ class ZabbixClient:
                 "itemid", "name", "key_", "delay", "type",
                 "value_type", "units", "description", "status", "history", "trends",
             ],
-            "selectDiscoveryRules": ["itemid", "name", "key_", "delay", "type"],
+            "selectDiscoveryRules": ["itemid", "name", "key_", "delay", "type", "master_itemid"],
         })
         if not results:
             return None
@@ -427,6 +427,7 @@ class ZabbixClient:
             "output": [
                 "itemid", "name", "key_", "delay",
                 "type", "value_type", "units", "description",
+                "params", "master_itemid",
             ],
         })
 

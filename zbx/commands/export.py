@@ -97,6 +97,12 @@ def export_cmd(
 
 
 def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
+    # Build a map from itemid → key_ for resolving master_itemid references
+    itemid_to_key: dict[str, str] = {}
+    for i in raw.get("items", []):
+        if i.get("itemid") and i.get("key_"):
+            itemid_to_key[i["itemid"]] = i["key_"]
+
     items = [
         Item(
             name=i["name"],
@@ -106,9 +112,11 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
             value_type=ItemValueType.from_zabbix_id(int(i.get("value_type", 0))),
             units=i.get("units", ""),
             description=i.get("description", ""),
+            params=i.get("params", ""),
             history=i.get("history", "90d"),
             trends=i.get("trends", "365d"),
             enabled=i.get("status", "0") == "0",
+            master_item_key=itemid_to_key.get(i["master_itemid"]) if i.get("master_itemid") and i["master_itemid"] != "0" else None,
             tags=[Tag(tag=t["tag"], value=t.get("value", "")) for t in i.get("tags", [])],
         )
         for i in raw.get("items", [])
@@ -131,6 +139,12 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
 
     discovery_rules = []
     for rule in raw.get("discoveryRules", []):
+        # Build itemid→key map for resolving master_itemid within this rule's prototypes
+        proto_itemid_to_key: dict[str, str] = {
+            p["itemid"]: p["key_"]
+            for p in rule.get("itemPrototypes", [])
+            if p.get("itemid") and p.get("key_")
+        }
         prototypes = [
             ItemPrototype(
                 name=p["name"],
@@ -139,6 +153,8 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
                 type=ItemType.from_zabbix_id(int(p.get("type", 0))),
                 value_type=ItemValueType.from_zabbix_id(int(p.get("value_type", 0))),
                 units=p.get("units", ""),
+                params=p.get("params", ""),
+                master_item_key=proto_itemid_to_key.get(p["master_itemid"]) if p.get("master_itemid") and p["master_itemid"] != "0" else None,
             )
             for p in rule.get("itemPrototypes", [])
         ]
@@ -169,12 +185,18 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
                 evaltype=LLDFilterEvalType.from_zabbix_id(int(raw_filter.get("evaltype", 0))),
                 conditions=conditions,
             )
+        # Resolve master_itemid for dependent discovery rules
+        rule_master_key: Optional[str] = None
+        master_iid = rule.get("master_itemid")
+        if master_iid and master_iid != "0":
+            rule_master_key = itemid_to_key.get(master_iid)
         discovery_rules.append(
             DiscoveryRule(
                 name=rule["name"],
                 key=rule["key_"],
                 interval=rule.get("delay", "1h"),
                 type=ItemType.from_zabbix_id(int(rule.get("type", 0))),
+                master_item_key=rule_master_key,
                 filter=lld_filter,
                 item_prototypes=prototypes,
                 trigger_prototypes=trig_protos,
@@ -201,6 +223,10 @@ def _template_to_yaml(template: Template) -> str:
         d: dict = {"name": item.name, "key": item.key, "interval": item.interval}  # type: ignore[type-arg]
         if item.type != ItemType.zabbix_agent:
             d["type"] = item.type.value
+        if item.master_item_key:
+            d["master_item_key"] = item.master_item_key
+        if item.params:
+            d["params"] = item.params
         if item.value_type.value != "float":
             d["value_type"] = item.value_type.value
         if item.units:
@@ -233,6 +259,10 @@ def _template_to_yaml(template: Template) -> str:
         d: dict = {"name": p.name, "key": p.key, "interval": p.interval}  # type: ignore[type-arg]
         if p.type != ItemType.zabbix_agent:
             d["type"] = p.type.value
+        if p.master_item_key:
+            d["master_item_key"] = p.master_item_key
+        if p.params:
+            d["params"] = p.params
         if p.value_type.value != "float":
             d["value_type"] = p.value_type.value
         if p.units:
@@ -253,6 +283,10 @@ def _template_to_yaml(template: Template) -> str:
 
     def _rule_dict(rule: DiscoveryRule) -> dict:  # type: ignore[type-arg]
         d: dict = {"name": rule.name, "key": rule.key, "interval": rule.interval}  # type: ignore[type-arg]
+        if rule.type != ItemType.zabbix_agent:
+            d["type"] = rule.type.value
+        if rule.master_item_key:
+            d["master_item_key"] = rule.master_item_key
         if rule.description:
             d["description"] = rule.description
         if rule.filter and rule.filter.conditions:

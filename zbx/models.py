@@ -218,6 +218,7 @@ class Item(BaseModel):
     description: str = ""
     params: str = ""   # formula for calculated items; OID for SNMP; empty otherwise
     url: Optional[str] = None   # required for http_agent type
+    master_item_key: Optional[str] = None  # required for dependent items
     tags: list[Tag] = Field(default_factory=list)
     history: str = "90d"
     trends: str = "365d"
@@ -239,6 +240,7 @@ class ItemPrototype(BaseModel):
     value_type: ItemValueType = ItemValueType.float
     units: str = ""
     description: str = ""
+    params: str = ""  # formula for calculated; empty for other types
     # For dependent items: key of the master item prototype in the same rule
     master_item_key: Optional[str] = None
     preprocessing: list[Preprocessing] = Field(default_factory=list)
@@ -318,6 +320,7 @@ class DiscoveryRule(BaseModel):
     interval: str = "1h"
     type: ItemType = ItemType.zabbix_agent
     description: str = ""
+    master_item_key: Optional[str] = None  # required for dependent discovery rules
     filter: Optional[LLDFilter] = None
     item_prototypes: list[ItemPrototype] = Field(default_factory=list)
     trigger_prototypes: list[TriggerPrototype] = Field(default_factory=list)

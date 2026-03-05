@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 from zbx.diff_engine import ChangeType, DiffEngine, TemplateDiff
 from zbx.models import DiscoveryRule, Host, HostMacro, Item, ItemPrototype, ItemType, ItemValueType, Template, Trigger, TriggerPrototype
@@ -195,12 +195,24 @@ class Deployer:
         )
         logger.info("Created template '%s' (id=%s).", template.template, templateid)
 
+        # Track created item IDs for dependent discovery rules and dependent items
+        item_key_to_id: dict[str, str] = {}
+        # Create non-dependent items first
         for item in template.items:
-            self._create_item(templateid, item)
+            if item.type != ItemType.dependent:
+                itemid = self._create_item(templateid, item)
+                if itemid:
+                    item_key_to_id[item.key] = itemid
+        # Then create dependent items, resolving master_itemid
+        for item in template.items:
+            if item.type == ItemType.dependent:
+                itemid = self._create_item(templateid, item, item_key_to_id)
+                if itemid:
+                    item_key_to_id[item.key] = itemid
         for trigger in template.triggers:
             self._create_trigger(trigger)
         for rule in template.discovery_rules:
-            self._create_discovery_rule(templateid, rule)
+            self._create_discovery_rule(templateid, rule, item_key_to_id)
 
     def _update_template(self, template: Template, diff: TemplateDiff) -> None:
         assert diff.template_id is not None
@@ -245,7 +257,12 @@ class Deployer:
                 rc.key,
             )
 
-    def _create_item(self, templateid: str, item: Item) -> None:
+    def _create_item(
+        self,
+        templateid: str,
+        item: Item,
+        item_key_to_id: Optional[dict[str, str]] = None,
+    ) -> Optional[str]:
         # char/log/text value types cannot store trends in Zabbix
         _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
         data: dict[str, Any] = {
@@ -265,8 +282,19 @@ class Deployer:
             data["tags"] = [{"tag": t.tag, "value": t.value} for t in item.tags]
         if item.url is not None:
             data["url"] = item.url
+        if item.type == ItemType.dependent and item.master_item_key:
+            master_id = (item_key_to_id or {}).get(item.master_item_key)
+            if master_id:
+                data["master_itemid"] = master_id
+            else:
+                logger.warning(
+                    "  ! Dependent item '%s' references unknown master_item_key '%s' — master_itemid not set.",
+                    item.name,
+                    item.master_item_key,
+                )
         itemid = self._client.create_item(templateid, data)
         logger.info("  + item '%s' (%s) id=%s", item.name, item.key, itemid)
+        return itemid
 
     def _update_item(self, itemid: str, item: Item) -> None:
         _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
@@ -348,7 +376,13 @@ class Deployer:
     ) -> None:
         if rc.type == ChangeType.ADD:
             rule = self._find_rule(template, rc.key)
-            self._create_discovery_rule(templateid, rule)
+            # Fetch existing items for this template so dependent rules can resolve master_itemid
+            existing_items = self._client._call("item.get", {
+                "output": ["itemid", "key_"],
+                "templateids": [templateid],
+            })
+            item_key_to_id = {i["key_"]: i["itemid"] for i in existing_items}
+            self._create_discovery_rule(templateid, rule, item_key_to_id)
         elif rc.type == ChangeType.MODIFY:
             rule = self._find_rule(template, rc.key)
             self._update_discovery_rule(rc.resource_id, rule, templateid)
@@ -358,7 +392,12 @@ class Deployer:
                 rc.name,
             )
 
-    def _create_discovery_rule(self, templateid: str, rule: DiscoveryRule) -> None:
+    def _create_discovery_rule(
+        self,
+        templateid: str,
+        rule: DiscoveryRule,
+        item_key_to_id: Optional[dict[str, str]] = None,
+    ) -> None:
         data: dict[str, Any] = {
             "name": rule.name,
             "key_": rule.key,
@@ -366,6 +405,17 @@ class Deployer:
             "type": rule.type.zabbix_id,
             "description": rule.description,
         }
+        # Dependent discovery rules require master_itemid
+        if rule.type == ItemType.dependent and rule.master_item_key:
+            master_id = (item_key_to_id or {}).get(rule.master_item_key)
+            if master_id:
+                data["master_itemid"] = master_id
+            else:
+                logger.warning(
+                    "  ! Dependent discovery rule '%s' references unknown master_item_key '%s' — master_itemid not set.",
+                    rule.name,
+                    rule.master_item_key,
+                )
         if rule.filter and rule.filter.conditions:
             data["filter"] = {
                 "evaltype": rule.filter.evaltype.zabbix_id,
@@ -453,8 +503,13 @@ class Deployer:
             "units": proto.units,
             "description": proto.description,
         }
+        # params is only valid for certain item types (calculated, script, etc.)
+        # Sending params="" causes errors for many types, so only include when non-empty
         if master_itemid:
             data["master_itemid"] = master_itemid
+        # Only send params when non-empty (calculated/script types require it; others reject empty)
+        if hasattr(proto, "params") and proto.params:
+            data["params"] = proto.params
         if proto.preprocessing:
             data["preprocessing"] = [
                 {
