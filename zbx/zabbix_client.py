@@ -123,6 +123,11 @@ class ZabbixClient:
     def get_api_version(self) -> str:
         return self._call("apiinfo.version")  # type: ignore[return-value]
 
+    @property
+    def version_str(self) -> str:
+        """Return the API version string after login (e.g. '7.4.7')."""
+        return ".".join(str(x) for x in self._version) if self._version else "unknown"
+
     def __enter__(self) -> ZabbixClient:
         self.login()
         return self

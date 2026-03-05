@@ -16,12 +16,14 @@ from rich.logging import RichHandler
 from zbx import __version__
 from zbx.commands.apply import apply_cmd
 from zbx.commands.agent import app as agent_app
+from zbx.commands.check import app as check_app
 from zbx.commands.diff import diff_cmd
 from zbx.commands.export import export_cmd
 from zbx.commands.inventory import app as inventory_app
 from zbx.commands.plan import plan_cmd
 from zbx.commands.scaffold import scaffold_cmd
 from zbx.commands.schema import schema_cmd
+from zbx.commands.status import status_cmd
 from zbx.commands.validate import validate_cmd
 
 console = Console(stderr=True)
@@ -49,6 +51,8 @@ app.command("validate", help="Validate YAML files against the schema.")(validate
 app.command("export", help="Export a Zabbix template to YAML (for Git migration).")(export_cmd)
 app.command("schema", help="Print YAML schema reference (Markdown or JSON).")(schema_cmd)
 app.command("scaffold", help="Bootstrap a new check folder (script + check.yaml skeleton).")(scaffold_cmd)
+app.command("status", help="Show connection status and Zabbix server info.")(status_cmd)
+app.add_typer(check_app, name="check", help="Discover and deploy bundled monitoring checks.")
 app.add_typer(inventory_app, name="inventory", help="Manage host inventory (list, apply).")
 app.add_typer(agent_app, name="agent", help="Deploy scripts and UserParameters to hosts.")
 
@@ -81,8 +85,19 @@ def _global_options(
         callback=_version_callback,
         is_eager=True,
     ),
+    profile: Optional[str] = typer.Option(  # noqa: UP007
+        None,
+        "--profile",
+        "-p",
+        help="Named environment profile from zbx.profiles.yaml.",
+        envvar="ZBX_PROFILE",
+    ),
 ) -> None:
     """Configure logging before any command runs."""
+    if profile:
+        import os  # noqa: PLC0415
+        os.environ["ZBX_PROFILE"] = profile
+
     level = logging.DEBUG if verbose else logging.WARNING
     logging.basicConfig(
         level=level,

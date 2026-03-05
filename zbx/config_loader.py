@@ -50,13 +50,24 @@ class ConfigLoader:
         except ValidationError as exc:
             raise ValueError(f"Inventory schema error in {path}:\n{exc}") from exc
 
-    def load_settings(self, env_file: Path | None = None) -> ZabbixSettings:
-        """Load Zabbix connection settings from environment / .env file."""
+    def load_settings(self, env_file: Path | None = None, profile: str | None = None) -> ZabbixSettings:
+        """Load Zabbix connection settings from environment / .env file / profile.
+
+        Resolution order (highest → lowest priority):
+          1. ``profile`` name  → reads ``zbx.profiles.yaml`` in cwd
+          2. ZBX_PROFILE env var (set by ``zbx --profile <name>``)
+          3. ``env_file``      → loads a .env file
+          4. OS environment    → ZBX_URL, ZBX_USER, ZBX_PASSWORD, …
+        """
         import os
 
-        if env_file and env_file.exists():
-            from dotenv import load_dotenv  # type: ignore[import-untyped]
+        effective_profile = profile or os.environ.get("ZBX_PROFILE")
 
+        # 1. Profile overrides — read zbx.profiles.yaml and inject as env vars
+        if effective_profile:
+            self._apply_profile(effective_profile)
+        elif env_file and env_file.exists():
+            from dotenv import load_dotenv  # type: ignore[import-untyped]
             load_dotenv(env_file)
             logger.debug("Loaded environment from %s", env_file)
 
@@ -74,6 +85,46 @@ class ConfigLoader:
             verify_ssl=os.environ.get("ZBX_VERIFY_SSL", "true").lower() == "true",
             timeout=int(os.environ.get("ZBX_TIMEOUT", "30")),
         )
+
+    def list_profiles(self, profiles_file: Path | None = None) -> dict[str, dict]:
+        """Return all profiles defined in zbx.profiles.yaml (or empty dict)."""
+        path = profiles_file or Path("zbx.profiles.yaml")
+        if not path.exists():
+            return {}
+        try:
+            with path.open() as fh:
+                raw = yaml.safe_load(fh) or {}
+            return raw.get("profiles", {})
+        except yaml.YAMLError:
+            return {}
+
+    def _apply_profile(self, profile: str, profiles_file: Path | None = None) -> None:
+        """Inject a named profile from zbx.profiles.yaml into os.environ."""
+        import os
+
+        profiles = self.list_profiles(profiles_file)
+        if not profiles:
+            raise EnvironmentError(
+                "No zbx.profiles.yaml found in the current directory.\n"
+                "Create one with your environment profiles — see README for format."
+            )
+        if profile not in profiles:
+            available = ", ".join(profiles.keys())
+            raise EnvironmentError(
+                f"Profile '{profile}' not found. Available: {available}"
+            )
+        cfg = profiles[profile]
+        mapping = {
+            "url":        "ZBX_URL",
+            "user":       "ZBX_USER",
+            "password":   "ZBX_PASSWORD",
+            "verify_ssl": "ZBX_VERIFY_SSL",
+            "timeout":    "ZBX_TIMEOUT",
+        }
+        for key, env_var in mapping.items():
+            if key in cfg:
+                os.environ[env_var] = str(cfg[key])
+        logger.debug("Applied profile '%s' → %s", profile, os.environ.get("ZBX_URL"))
 
     # ------------------------------------------------------------------
     # Internal helpers

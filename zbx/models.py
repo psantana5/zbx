@@ -390,6 +390,15 @@ class HostMacro(BaseModel):
     value: str
     description: str = ""
 
+    @field_validator("macro")
+    @classmethod
+    def macro_format(cls, v: str) -> str:
+        if "{$" not in v and "{#" not in v:
+            raise ValueError(
+                f"macro must contain '{{$' (user macro) or '{{#' (LLD macro), got '{v}'"
+            )
+        return v
+
 
 class Host(BaseModel):
     """Declarative host configuration: which templates to link and which macros to set."""

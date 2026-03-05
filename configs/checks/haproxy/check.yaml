@@ -1,0 +1,93 @@
+template: haproxy
+name: HAProxy
+description: >
+  HAProxy load balancer health via the stats CSV page: frontend/backend status,
+  active/down servers, session counts, request throughput and error rates.
+groups:
+  - Templates
+  - Templates/Networking
+
+items:
+  - name: HAProxy ping
+    key: "haproxy.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 = stats page reachable, 0 = down"
+
+  - name: Active frontends
+    key: "haproxy.stat[active_frontends]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Active backends
+    key: "haproxy.stat[active_backends]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Active servers (UP)
+    key: "haproxy.stat[active_servers]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Down servers
+    key: "haproxy.stat[down_servers]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Current sessions
+    key: "haproxy.stat[sessions_current]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Max sessions (peak)
+    key: "haproxy.stat[sessions_max]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Total HTTP requests
+    key: "haproxy.stat[requests_total]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Connection errors
+    key: "haproxy.stat[errors_conn]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Response errors
+    key: "haproxy.stat[errors_resp]"
+    interval: 60s
+    value_type: unsigned
+
+triggers:
+  - name: HAProxy stats page unreachable
+    expression: "last(/haproxy/haproxy.stat[ping])=0"
+    severity: high
+
+  - name: Server down in HAProxy
+    expression: "last(/haproxy/haproxy.stat[down_servers])>0"
+    severity: average
+    description: "One or more backend servers are in DOWN state."
+
+  - name: High connection error rate
+    expression: "change(/haproxy/haproxy.stat[errors_conn]) > 50"
+    severity: warning
+
+  - name: High response error rate
+    expression: "change(/haproxy/haproxy.stat[errors_resp]) > 50"
+    severity: warning
+
+agent:
+  scripts:
+    - source: scripts/check_haproxy.py
+      dest: /usr/local/zbx/scripts/check_haproxy.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-haproxy
+      parameters:
+        - key: "haproxy.stat[*]"
+          command: "/usr/local/zbx/scripts/check_haproxy.py $1"
+  test_keys:
+    - "haproxy.stat[ping]"

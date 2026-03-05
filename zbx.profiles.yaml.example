@@ -1,0 +1,29 @@
+# zbx.profiles.yaml — multi-environment profiles for zbx
+#
+# Usage:
+#   zbx --profile staging plan configs/
+#   zbx --profile prod    apply configs/ --auto-approve
+#
+# Or set the active profile via environment variable:
+#   export ZBX_PROFILE=staging
+#   zbx plan configs/
+#
+# Fields per profile (all optional except url and password):
+#   url        — full Zabbix frontend URL  (ZBX_URL)
+#   user       — API username              (ZBX_USER, default: Admin)
+#   password   — API password              (ZBX_PASSWORD)
+#   verify_ssl — verify TLS certificates  (ZBX_VERIFY_SSL, default: true)
+#   timeout    — HTTP timeout in seconds   (ZBX_TIMEOUT, default: 30)
+
+profiles:
+  staging:
+    url: http://zabbix-staging.example.com/zabbix
+    user: Admin
+    password: changeme
+    verify_ssl: false
+
+  prod:
+    url: https://zabbix.example.com/zabbix
+    user: Admin
+    password: changeme
+    verify_ssl: true

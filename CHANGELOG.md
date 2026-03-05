@@ -5,7 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.2.0] — 2026-03-05
+## [0.3.0] — 2026-03-05
+
+### Added
+- `zbx status` — show connection info, Zabbix API version, template/host counts
+- `zbx check list` — table of all bundled checks with item/trigger/agent summary
+- `zbx check info <name>` — detailed view of a check's items, triggers, and agent config
+- `zbx check install <name> <host>` — apply template + deploy agent in one command
+- Multi-environment profiles: `zbx --profile staging plan configs/`
+  - `zbx.profiles.yaml` with named environments (url, user, password, …)
+  - `ZBX_PROFILE` env var support
+  - `zbx.profiles.yaml.example` added to repo; `zbx.profiles.yaml` gitignored
+- 5 new bundled community checks: **mysql**, **rabbitmq**, **haproxy**, **elasticsearch**, **kubernetes-node**
+  — all with check.yaml templates, agent blocks, and UserParameter scripts
+- Unit tests: `tests/test_models.py` (51 tests) and `tests/test_diff_engine.py` (15 tests)
+  — 88 total tests (66 unit + 22 e2e), all passing
+- `HostMacro.macro` field validator: enforces `{$…}` or `{#…}` format
+
+### Fixed
+- `zbx status` now reads API version from the already-authenticated session
+  (`version_str` property on `ZabbixClient`) instead of calling `apiinfo.version`
+  again (which fails with Zabbix 7.x when an auth header is present)
+- `inventory apply` now applies host macros (create + update + idempotency)
+- `list_hosts` now requests `selectMacros` so macro diffs are correctly computed
+- Stale `scripts/getS3Storage.py` reference removed from `inventory.yaml`
+
+ — 2026-03-05
 
 ### Added
 - `zbx export --all` — bulk export of every template from Zabbix to YAML files

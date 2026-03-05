@@ -1,0 +1,87 @@
+template: rabbitmq
+name: RabbitMQ
+description: >
+  RabbitMQ broker health via the management HTTP API: message queues,
+  connections, consumers, memory and file descriptor usage.
+groups:
+  - Templates
+  - Templates/Messaging
+
+items:
+  - name: RabbitMQ ping
+    key: "rabbitmq.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 = management API reachable, 0 = down"
+
+  - name: Messages ready
+    key: "rabbitmq.stat[messages_ready]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total messages waiting to be consumed across all queues."
+
+  - name: Messages unacknowledged
+    key: "rabbitmq.stat[messages_unacked]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Total connections
+    key: "rabbitmq.stat[connections]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Total consumers
+    key: "rabbitmq.stat[consumers]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Number of queues
+    key: "rabbitmq.stat[queues]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Memory used
+    key: "rabbitmq.stat[mem_used]"
+    interval: 5m
+    value_type: unsigned
+    units: B
+
+  - name: File descriptors used
+    key: "rabbitmq.stat[fd_used]"
+    interval: 5m
+    value_type: unsigned
+
+triggers:
+  - name: RabbitMQ management API unreachable
+    expression: "last(/rabbitmq/rabbitmq.stat[ping])=0"
+    severity: high
+
+  - name: High number of ready messages (> 10000)
+    expression: "last(/rabbitmq/rabbitmq.stat[messages_ready]) > 10000"
+    severity: average
+    description: "Consumers may be falling behind or stopped."
+
+  - name: High number of unacknowledged messages (> 5000)
+    expression: "last(/rabbitmq/rabbitmq.stat[messages_unacked]) > 5000"
+    severity: warning
+
+  - name: No consumers (queues have messages but no consumers)
+    expression: >
+      last(/rabbitmq/rabbitmq.stat[consumers])=0 and
+      last(/rabbitmq/rabbitmq.stat[messages_ready])>0
+    severity: average
+
+agent:
+  scripts:
+    - source: scripts/check_rabbitmq.py
+      dest: /usr/local/zbx/scripts/check_rabbitmq.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-rabbitmq
+      parameters:
+        - key: "rabbitmq.stat[*]"
+          command: "/usr/local/zbx/scripts/check_rabbitmq.py $1"
+  test_keys:
+    - "rabbitmq.stat[ping]"

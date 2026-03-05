@@ -1,0 +1,101 @@
+template: kubernetes-node
+name: Kubernetes Node
+description: >
+  Kubernetes node health via the Kubelet read-only metrics port or node_exporter.
+  Monitors CPU, memory, pod count, and node conditions.
+  Requires a Zabbix agent UserParameter script on each node.
+groups:
+  - Templates
+  - Templates/Cloud
+
+items:
+  - name: Kubernetes node ping
+    key: "k8s.node[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 = kubelet metrics reachable, 0 = down"
+
+  - name: Node CPU usage (millicores)
+    key: "k8s.node[cpu_millicores]"
+    interval: 60s
+    value_type: float
+    units: "m"
+
+  - name: Node memory used (bytes)
+    key: "k8s.node[memory_used_bytes]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+
+  - name: Node memory capacity (bytes)
+    key: "k8s.node[memory_capacity_bytes]"
+    interval: 10m
+    value_type: unsigned
+    units: B
+
+  - name: Running pods
+    key: "k8s.node[pods_running]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Pod capacity
+    key: "k8s.node[pods_capacity]"
+    interval: 10m
+    value_type: unsigned
+
+  - name: Node condition Ready
+    key: "k8s.node[condition_ready]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 = Node is Ready, 0 = NotReady"
+
+  - name: Node condition DiskPressure
+    key: "k8s.node[condition_disk_pressure]"
+    interval: 5m
+    value_type: unsigned
+    description: "1 = disk pressure, 0 = ok"
+
+  - name: Node condition MemoryPressure
+    key: "k8s.node[condition_memory_pressure]"
+    interval: 5m
+    value_type: unsigned
+    description: "1 = memory pressure, 0 = ok"
+
+triggers:
+  - name: Kubernetes node kubelet unreachable
+    expression: "last(/kubernetes-node/k8s.node[ping])=0"
+    severity: high
+
+  - name: Node is NotReady
+    expression: "last(/kubernetes-node/k8s.node[condition_ready])=0"
+    severity: disaster
+    description: "The node is not in Ready state — pods may not be scheduled."
+
+  - name: Node has DiskPressure
+    expression: "last(/kubernetes-node/k8s.node[condition_disk_pressure])=1"
+    severity: average
+
+  - name: Node has MemoryPressure
+    expression: "last(/kubernetes-node/k8s.node[condition_memory_pressure])=1"
+    severity: average
+
+  - name: High pod density (> 90% of capacity)
+    expression: >
+      last(/kubernetes-node/k8s.node[pods_running]) /
+      last(/kubernetes-node/k8s.node[pods_capacity]) * 100 > 90
+    severity: warning
+
+agent:
+  scripts:
+    - source: scripts/check_k8s_node.py
+      dest: /usr/local/zbx/scripts/check_k8s_node.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-kubernetes-node
+      parameters:
+        - key: "k8s.node[*]"
+          command: "/usr/local/zbx/scripts/check_k8s_node.py $1"
+  test_keys:
+    - "k8s.node[ping]"

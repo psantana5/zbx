@@ -33,3 +33,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 scripts/getS3Storage.py
+
+# Multi-environment profiles (may contain passwords)
+zbx.profiles.yaml
