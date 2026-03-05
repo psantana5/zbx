@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "zbx-tool"
+name = "zbxctl"
 version = "0.2.0"
 description = "Zabbix configuration as code — manage monitoring via Git"
 readme = "README.md"
