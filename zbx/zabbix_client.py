@@ -38,6 +38,9 @@ class ZabbixClient:
         self._auth: str | None = None
         self._api_url = f"{settings.url.rstrip('/')}/api_jsonrpc.php"
         self._req_id = 0
+        # Populated during login(); used to switch between legacy "auth" payload
+        # field (< 6.4) and "Authorization: Bearer" header (>= 6.4).
+        self._version: tuple[int, ...] = (0, 0, 0)
 
     # ------------------------------------------------------------------
     # Low-level RPC
@@ -51,7 +54,9 @@ class ZabbixClient:
             "params": params if params is not None else {},
             "id": self._req_id,
         }
-        if self._auth:
+        # Zabbix < 6.4: auth token goes in the request body.
+        # Zabbix >= 6.4: auth token goes in the Authorization header (set in login()).
+        if self._auth and self._version < (6, 4):
             payload["auth"] = self._auth
 
         try:
@@ -78,20 +83,33 @@ class ZabbixClient:
     # ------------------------------------------------------------------
 
     def login(self) -> None:
-        """Authenticate and store the auth token."""
-        # Zabbix 5.4+ uses "username"; older versions use "user"
-        try:
-            result = self._call("user.login", {
-                "username": self._settings.username,
-                "password": self._settings.password,
-            })
-        except ZabbixAPIError:
-            result = self._call("user.login", {
-                "user": self._settings.username,
-                "password": self._settings.password,
-            })
+        """Authenticate and store the auth token.
+
+        Detects the Zabbix API version first so that:
+        - < 5.4 : uses legacy ``user`` field in user.login
+        - >= 5.4 : uses ``username`` field in user.login
+        - >= 6.4 : passes token via ``Authorization: Bearer`` header
+                   instead of the ``auth`` payload field
+        """
+        version_str = self.get_api_version()
+        self._version = tuple(int(x) for x in version_str.split(".")[:3])
+        logger.debug("Zabbix API version: %s", version_str)
+
+        login_params: dict[str, str] = {"password": self._settings.password}
+        # "username" key introduced in 5.4; older servers use "user"
+        if self._version >= (5, 4):
+            login_params["username"] = self._settings.username
+        else:
+            login_params["user"] = self._settings.username
+
+        result = self._call("user.login", login_params)
         self._auth = result
-        logger.debug("Authenticated with Zabbix at %s", self._settings.url)
+
+        # 6.4+ dropped "auth" from the payload — use Bearer header instead
+        if self._version >= (6, 4):
+            self._session.headers.update({"Authorization": f"Bearer {self._auth}"})
+
+        logger.debug("Authenticated with Zabbix %s at %s", version_str, self._settings.url)
 
     def logout(self) -> None:
         if self._auth:
@@ -100,6 +118,7 @@ class ZabbixClient:
             except ZabbixAPIError:
                 pass
             self._auth = None
+            self._session.headers.pop("Authorization", None)
 
     def get_api_version(self) -> str:
         return self._call("apiinfo.version")  # type: ignore[return-value]
