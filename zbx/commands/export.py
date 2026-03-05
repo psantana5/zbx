@@ -21,6 +21,7 @@ from zbx.models import (
     LLDFilterCondition,
     LLDFilterConditionOperator,
     LLDFilterEvalType,
+    Tag,
     Template,
     Trigger,
     TriggerPrototype,
@@ -108,6 +109,7 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
             history=i.get("history", "90d"),
             trends=i.get("trends", "365d"),
             enabled=i.get("status", "0") == "0",
+            tags=[Tag(tag=t["tag"], value=t.get("value", "")) for t in i.get("tags", [])],
         )
         for i in raw.get("items", [])
         # Exclude items that belong to discovery rule prototypes
@@ -122,6 +124,7 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
             recovery_expression=t.get("recovery_expression", ""),
             description=t.get("comments", ""),
             enabled=t.get("status", "0") == "0",
+            tags=[Tag(tag=tg["tag"], value=tg.get("value", "")) for tg in t.get("tags", [])],
         )
         for t in raw.get("triggers", [])
     ]
@@ -210,6 +213,8 @@ def _template_to_yaml(template: Template) -> str:
             d["trends"] = item.trends
         if not item.enabled:
             d["enabled"] = False
+        if item.tags:
+            d["tags"] = [{"tag": t.tag, "value": t.value} for t in item.tags]
         return d
 
     def _trigger_dict(t: Trigger) -> dict:  # type: ignore[type-arg]
@@ -220,6 +225,8 @@ def _template_to_yaml(template: Template) -> str:
             d["description"] = t.description
         if not t.enabled:
             d["enabled"] = False
+        if t.tags:
+            d["tags"] = [{"tag": tg.tag, "value": tg.value} for tg in t.tags]
         return d
 
     def _proto_dict(p: ItemPrototype) -> dict:  # type: ignore[type-arg]

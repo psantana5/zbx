@@ -476,11 +476,23 @@ class ZabbixClient:
         if not results:
             return None
         tmpl = results[0]
+        # Enrich items with tags (selectItems:extend doesn't include tags sub-entity)
+        if tmpl.get("items"):
+            item_ids = [i["itemid"] for i in tmpl["items"]]
+            items_with_tags = self._call("item.get", {
+                "itemids": item_ids,
+                "output": ["itemid"],
+                "selectTags": "extend",
+            })
+            tags_by_id = {i["itemid"]: i.get("tags", []) for i in items_with_tags}
+            for item in tmpl["items"]:
+                item["tags"] = tags_by_id.get(item["itemid"], [])
         # Fetch triggers separately with expandExpression to get human-readable expressions
         tmpl["triggers"] = self._call("trigger.get", {
             "templateids": [templateid],
             "output": ["triggerid", "description", "expression", "priority",
                        "status", "comments", "recovery_expression", "recovery_mode"],
+            "selectTags": "extend",
             "expandExpression": True,
             "inherited": False,
         })
