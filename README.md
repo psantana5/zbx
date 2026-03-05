@@ -12,9 +12,14 @@ zbx export    linux             Export an existing template to YAML
 zbx export    --all             Export every template to configs/templates/
 zbx schema                      Print YAML field reference (Markdown or JSON Schema)
 zbx scaffold  my-check          Bootstrap a new monitoring check folder
+zbx status                      Show connection status and server summary
 
 zbx inventory list              List all hosts in Zabbix
 zbx inventory apply inventory.yaml  Create or update hosts in Zabbix
+
+zbx check list                  List all bundled monitoring checks
+zbx check info  <name>          Show items, triggers and agent details for a check
+zbx check install <name> <host> Apply template + deploy agent in one step
 
 zbx agent diff   <host>         Preview agent-side changes
 zbx agent deploy <host>         Deploy scripts and UserParameters via SSH
@@ -22,6 +27,8 @@ zbx agent test   <host>         Verify keys with zabbix_agentd -t
 
 zbx agent deploy <host> --from-check configs/checks/my-check/
 zbx agent test   <host> --from-check configs/checks/my-check/
+
+zbx --profile staging plan configs/   Use a named environment profile
 ```
 
 ---
@@ -83,6 +90,38 @@ export ZBX_URL=http://zabbix.example.com/zabbix
 export ZBX_USER=Admin
 export ZBX_PASSWORD=secret
 ```
+
+### Multi-environment profiles
+
+For teams with multiple environments (staging, production, dev), create a
+`zbx.profiles.yaml` (gitignored — contains credentials):
+
+```yaml
+# zbx.profiles.yaml
+staging:
+  ZBX_URL: http://zabbix-staging.example.com/zabbix
+  ZBX_USER: Admin
+  ZBX_PASSWORD: staging-secret
+
+production:
+  ZBX_URL: https://zabbix.example.com/zabbix
+  ZBX_USER: Admin
+  ZBX_PASSWORD: prod-secret
+  ZBX_VERIFY_SSL: "true"
+```
+
+Then switch environments with:
+
+```bash
+zbx --profile staging plan configs/
+zbx --profile production apply configs/ --auto-approve
+
+# Or set via environment variable
+export ZBX_PROFILE=staging
+zbx plan configs/
+```
+
+Copy `zbx.profiles.yaml.example` from the repo as a starting point.
 
 ---
 
@@ -259,6 +298,40 @@ zbx scaffold my-check-name
 
 After scaffolding, edit the generated files and follow the contributor workflow
 described in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### zbx status
+
+Shows connection info and a summary of the Zabbix server state.
+
+```bash
+zbx status
+```
+
+```
+zbx version   : 0.3.1
+Zabbix URL    : http://zabbix.example.com/zabbix
+API version   : 7.4.7
+Auth user     : Admin
+Templates     : 210
+Hosts         : 42
+```
+
+### zbx check
+
+Browse and deploy bundled monitoring checks.
+
+```bash
+zbx check list                        # table of all checks with item/trigger counts
+zbx check info postgresql             # full details: items, triggers, agent deploy info
+zbx check install postgresql myhost   # apply template + deploy agent in one command
+```
+
+`zbx check install` is a shortcut for:
+
+```bash
+zbx apply configs/checks/postgresql/
+zbx agent deploy myhost --from-check configs/checks/postgresql/
+```
 
 ---
 
@@ -546,7 +619,7 @@ the same result.
 
 ## Bundled Community Checks
 
-zbx ships with 5 ready-to-use monitoring checks under `configs/checks/`.
+zbx ships with 10 ready-to-use monitoring checks under `configs/checks/`.
 Each includes a Zabbix template **and** an `agent:` block so the script and
 UserParameter can be deployed with a single command.
 
@@ -557,8 +630,21 @@ UserParameter can be deployed with a single command.
 | Nginx | `configs/checks/nginx/` | `nginx.stat[ping]`, `nginx.stat[active]`, … |
 | Docker | `configs/checks/docker/` | `docker.stat[ping]`, `docker.stat[containers.running]`, … |
 | SSL cert | `configs/checks/ssl-cert/` | `ssl.cert[days_remaining,host:443]`, `ssl.cert[valid,host:443]` |
+| MySQL | `configs/checks/mysql/` | `mysql.stat[ping]`, `mysql.stat[threads_connected]`, … |
+| RabbitMQ | `configs/checks/rabbitmq/` | `rabbitmq.stat[ping]`, `rabbitmq.stat[messages_ready]`, … |
+| HAProxy | `configs/checks/haproxy/` | `haproxy.stat[ping]`, `haproxy.stat[active_backends]`, … |
+| Elasticsearch | `configs/checks/elasticsearch/` | `elasticsearch.stat[ping]`, `elasticsearch.stat[status]`, … |
+| Kubernetes node | `configs/checks/kubernetes-node/` | `k8s.node[ping]`, `k8s.node[pods_running]`, … |
 
-**Deploy a check end-to-end:**
+Browse and install checks interactively:
+
+```bash
+zbx check list                        # see all checks
+zbx check info mysql                  # items, triggers, agent details
+zbx check install mysql db-server-01  # apply + deploy in one command
+```
+
+**Deploy a check manually (step-by-step):**
 
 ```bash
 # 1. Apply the template to Zabbix
@@ -587,7 +673,7 @@ zbx/
 │   ├── cli.py              Typer app + command registration
 │   ├── models.py           Pydantic models (Template, Item, Trigger, DiscoveryRule,
 │   │                       Host, InventoryHost, AgentConfig, ScriptDeploy, ...)
-│   ├── config_loader.py    YAML loading and schema validation
+│   ├── config_loader.py    YAML loading, schema validation, profile support
 │   ├── zabbix_client.py    Zabbix JSON-RPC HTTP client (version-aware auth)
 │   ├── diff_engine.py      Desired vs current state comparison
 │   ├── deployer.py         Apply logic for templates and hosts
@@ -601,32 +687,47 @@ zbx/
 │       ├── export.py       zbx export / zbx export --all
 │       ├── scaffold.py     zbx scaffold
 │       ├── schema.py       zbx schema (field reference / JSON Schema)
-│       ├── inventory.py    zbx inventory list / apply
-│       └── agent.py        zbx agent diff / deploy / test
+│       ├── inventory.py    zbx inventory list / apply (with macro support)
+│       ├── agent.py        zbx agent diff / deploy / test
+│       ├── status.py       zbx status (connection + server summary)
+│       └── check.py        zbx check list / info / install
 ├── configs/
 │   ├── templates/          Standalone template YAML files
 │   │   ├── linux-observability.yaml
 │   │   └── nginx.yaml
-│   ├── checks/             Self-contained monitoring checks
+│   ├── checks/             Self-contained monitoring checks (10 bundled)
 │   │   ├── CONTRIBUTING.md   How to add a new check
-│   │   ├── postgresql/       PostgreSQL monitoring (agent block included)
-│   │   ├── redis/            Redis monitoring (agent block included)
-│   │   ├── nginx/            Nginx stub_status monitoring (agent block included)
-│   │   ├── docker/           Docker daemon monitoring (agent block included)
-│   │   ├── ssl-cert/         SSL certificate expiry (agent block included)
-│   │   ├── system-health/    CPU / memory / disk (built-in agent keys, no script)
+│   │   ├── postgresql/       PostgreSQL monitoring
+│   │   ├── redis/            Redis monitoring
+│   │   ├── nginx/            Nginx stub_status monitoring
+│   │   ├── docker/           Docker daemon monitoring
+│   │   ├── ssl-cert/         SSL certificate expiry
+│   │   ├── mysql/            MySQL / MariaDB monitoring
+│   │   ├── rabbitmq/         RabbitMQ management API monitoring
+│   │   ├── haproxy/          HAProxy stats monitoring
+│   │   ├── elasticsearch/    Elasticsearch REST API monitoring
+│   │   ├── kubernetes-node/  Kubernetes node Kubelet monitoring
+│   │   ├── system-health/    CPU / memory / disk (built-in keys, no script)
 │   │   └── s3-monitoring/    Reference example with custom script
 │   └── hosts/              Host playbook YAML files
 │       └── zabbixtest3100.yaml
 ├── scripts/                Agent scripts (legacy; prefer configs/checks/ for new work)
 │   └── README.md
+├── tests/
+│   ├── test_models.py      Unit tests — Pydantic model validation (51 tests)
+│   ├── test_diff_engine.py Unit tests — diff engine logic (15 tests)
+│   └── test_e2e.py         End-to-end integration tests vs live Zabbix (22 tests)
 ├── inventory.yaml          Host inventory (groups, IPs, agent config)
+├── zbx.profiles.yaml.example  Multi-environment profile template
 ├── .github/
 │   ├── workflows/
+│   │   ├── publish.yml         PyPI publish on vX.Y.Z tag (OIDC trusted publishing)
+│   │   ├── tests.yml           Run test suite on push/PR
 │   │   └── ai-maintainer.yml   Automated issue processing via Claude
 │   └── scripts/
 │       └── ai_maintainer.py    Agentic implementation
 ├── CONTRIBUTING.md
+├── CHANGELOG.md
 ├── pyproject.toml
 ├── .env.example
 └── README.md
