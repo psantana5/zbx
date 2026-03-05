@@ -190,12 +190,17 @@ class ZabbixClient:
 
     def list_hosts(self) -> list[dict[str, Any]]:
         """Return all hosts with their groups, interfaces and linked templates."""
-        return self._call("host.get", {  # type: ignore[return-value]
+        # Zabbix 6.2+ renamed selectGroups → selectHostGroups (response: hostgroups).
+        # Normalise to "groups" so callers stay version-agnostic.
+        hosts: list[dict[str, Any]] = self._call("host.get", {
             "output": ["hostid", "host", "name", "description", "status"],
-            "selectGroups": ["groupid", "name"],
+            "selectHostGroups": ["groupid", "name"],
             "selectParentTemplates": ["templateid", "host", "name"],
             "selectInterfaces": ["interfaceid", "ip", "port", "type", "main"],
         })
+        for h in hosts:
+            h.setdefault("groups", h.pop("hostgroups", []))
+        return hosts
 
     def create_host(
         self,
