@@ -3,8 +3,8 @@
 AI Maintainer — processes issues labeled 'ai-task' and opens pull requests.
 
 Triggered by GitHub Actions when an issue receives the 'ai-task' label.
-Uses the GitHub Models API (GPT-4o, OpenAI-compatible) to understand the
-issue, explore the codebase, write the necessary changes, and create a PR.
+Uses GitHub Models API (Claude claude-3-5-sonnet, OpenAI-compatible) to understand
+the issue, explore the codebase, write the necessary changes, and create a PR.
 
 Environment variables (injected by the workflow):
     GITHUB_TOKEN   GitHub token with contents/PR/issues write permissions
@@ -38,11 +38,14 @@ ISSUE_BODY = os.environ.get("ISSUE_BODY", "")
 REPO = os.environ.get("REPO", "")
 
 # GitHub Models API — OpenAI-compatible, authenticated via GITHUB_TOKEN.
+# Uses Anthropic's Claude via GitHub's model proxy (no extra secrets needed).
 # See: https://docs.github.com/en/github-models
 client = OpenAI(
     base_url="https://models.inference.ai.azure.com",
     api_key=GITHUB_TOKEN,
 )
+
+MODEL = "claude-3-5-sonnet"  # Claude via GitHub Models / Copilot
 
 # ---------------------------------------------------------------------------
 # Tools exposed to the model
@@ -386,7 +389,7 @@ def run() -> dict:
         print(f"[round {round_num + 1}/{MAX_ROUNDS}] calling model…", flush=True)
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL,
             messages=messages,
             tools=TOOLS,
             tool_choice="auto",

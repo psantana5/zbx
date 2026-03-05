@@ -9,6 +9,7 @@ zbx apply     configs/          Apply changes to Zabbix
 zbx diff      configs/          Compare local config against Zabbix
 zbx validate  configs/          Validate YAML schema (no Zabbix connection)
 zbx export    linux             Export an existing template to YAML
+zbx scaffold  my-check          Bootstrap a new monitoring check folder
 
 zbx inventory list              List all hosts in Zabbix
 zbx inventory apply inventory.yaml  Create or update hosts in Zabbix
@@ -16,6 +17,9 @@ zbx inventory apply inventory.yaml  Create or update hosts in Zabbix
 zbx agent diff   <host>         Preview agent-side changes
 zbx agent deploy <host>         Deploy scripts and UserParameters via SSH
 zbx agent test   <host>         Verify keys with zabbix_agentd -t
+
+zbx agent deploy <host> --from-check configs/checks/my-check/
+zbx agent test   <host> --from-check configs/checks/my-check/
 ```
 
 ---
@@ -219,6 +223,19 @@ zbx export "Linux by Zabbix agent" --output configs/templates/linux-zabbix-agent
 zbx export linux        # partial name search
 ```
 
+### zbx scaffold
+
+Bootstraps a new self-contained monitoring check folder under `configs/checks/`.
+The generated skeleton includes a `check.yaml`, a placeholder script and a `README.md`.
+
+```bash
+zbx scaffold my-check-name
+# creates configs/checks/my-check-name/{check.yaml, my_check_name.py, README.md}
+```
+
+After scaffolding, edit the generated files and follow the contributor workflow
+described in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ---
 
 ## Inventory and Host Management
@@ -279,9 +296,9 @@ zbx inventory apply inventory.yaml --dry-run
 ### zbx agent
 
 The agent commands deploy scripts and UserParameters to monitored hosts.
-Scripts are stored in `scripts/` in the repo and versioned in Git. zbx
-computes a SHA-256 checksum before every deploy — only changed files are
-transferred.
+Scripts are stored in `scripts/` (or inside a check folder) in the repo and
+versioned in Git. zbx computes a SHA-256 checksum before every deploy —
+only changed files are transferred.
 
 ```bash
 zbx agent diff   webserver01   # show what would change on the host
@@ -290,6 +307,18 @@ zbx agent deploy webserver01 --dry-run
 zbx agent deploy webserver01 --auto-approve   # skip confirmation (CI/CD)
 zbx agent test   webserver01   # run zabbix_agentd -t for each test_key
 zbx agent test   webserver01 --key nginx.active_connections  # ad-hoc test
+```
+
+#### `--from-check` — deploy a self-contained check
+
+If a check lives under `configs/checks/`, you can deploy its scripts and
+UserParameters without touching `inventory.yaml`. zbx merges the check's
+`agent:` block into the host's existing config automatically:
+
+```bash
+zbx agent diff   webserver01 --from-check configs/checks/nginx/
+zbx agent deploy webserver01 --from-check configs/checks/nginx/
+zbx agent test   webserver01 --from-check configs/checks/nginx/
 ```
 
 For **remote hosts**, zbx connects over SSH (Paramiko). The user running zbx
@@ -303,6 +332,8 @@ any writes.
 ---
 
 ## Full Deployment Workflow
+
+### Option A — traditional (script + separate template)
 
 ```bash
 # 1. Add monitoring scripts to the repo
@@ -332,6 +363,32 @@ zbx agent test   myhost              # verify keys
 # 7. Commit everything
 git add configs/ scripts/ inventory.yaml
 git commit -m "feat: add monitoring for myhost"
+```
+
+### Option B — self-contained check (recommended for new contributions)
+
+```bash
+# 1. Bootstrap the check folder
+zbx scaffold my-check
+
+# 2. Write the script and fill in check.yaml
+vim configs/checks/my-check/my_check.py
+vim configs/checks/my-check/check.yaml
+
+# 3. Validate and preview
+zbx validate configs/checks/my-check/
+zbx plan     configs/checks/my-check/
+
+# 4. Apply the template to Zabbix
+zbx apply configs/checks/my-check/
+
+# 5. Deploy script to host (no inventory.yaml changes needed)
+zbx agent deploy myhost --from-check configs/checks/my-check/
+zbx agent test   myhost --from-check configs/checks/my-check/
+
+# 6. Commit
+git add configs/checks/my-check/
+git commit -m "feat(check): add my-check monitoring"
 ```
 
 ---
@@ -459,17 +516,29 @@ zbx/
 │       ├── diff.py         zbx diff
 │       ├── validate.py     zbx validate
 │       ├── export.py       zbx export
+│       ├── scaffold.py     zbx scaffold
 │       ├── inventory.py    zbx inventory list / apply
 │       └── agent.py        zbx agent diff / deploy / test
 ├── configs/
-│   ├── templates/          Template YAML files
+│   ├── templates/          Standalone template YAML files
 │   │   ├── linux-observability.yaml
 │   │   └── nginx.yaml
+│   ├── checks/             Self-contained monitoring checks
+│   │   ├── CONTRIBUTING.md   How to add a new check
+│   │   └── s3-monitoring/    Reference example
+│   │       ├── check.yaml      template + agent deployment block
+│   │       └── README.md
 │   └── hosts/              Host playbook YAML files
 │       └── zabbixtest3100.yaml
-├── scripts/                Agent scripts deployed by zbx agent deploy
+├── scripts/                Agent scripts (legacy; prefer configs/checks/ for new work)
 │   └── README.md
 ├── inventory.yaml          Host inventory (groups, IPs, agent config)
+├── .github/
+│   ├── workflows/
+│   │   └── ai-maintainer.yml   Automated issue processing via Claude
+│   └── scripts/
+│       └── ai_maintainer.py    Agentic implementation
+├── CONTRIBUTING.md
 ├── pyproject.toml
 ├── .env.example
 └── README.md
@@ -564,6 +633,45 @@ jobs:
 | New CLI command | `zbx/commands/<cmd>.py`, registered in `cli.py` |
 | Custom output format | `formatter.py` |
 | New agent check step | `agent_deployer.py` |
+| New monitoring check | `zbx scaffold <name>` → fill in `configs/checks/<name>/` |
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
+
+---
+
+## AI Maintainer
+
+The repository includes a GitHub Actions workflow that automatically processes
+issues labeled **`ai-task`** using **Claude** (via GitHub Models API).
+
+### How it works
+
+1. Open an issue describing the change, bug fix or new check needed.
+2. Add the `ai-task` label.
+3. The workflow triggers, runs an agentic loop:
+   - reads the issue and explores the codebase,
+   - writes the necessary files,
+   - validates any YAML,
+   - commits and pushes to a new branch,
+   - opens a pull request.
+4. A comment is posted on the issue with a link to the PR.
+
+### Writing effective `ai-task` issues
+
+Be specific. Good example:
+
+> **Add a PostgreSQL monitoring check**
+>
+> Add `configs/checks/postgres/` that monitors:
+> - Active connections (`pg_stat_activity` count) — trigger: warning > 200, high > 400
+> - Replication lag in seconds
+> - Database size in bytes
+>
+> Script should output plain numbers. Use `psql` to query.
+
+### Manual re-run
+
+**Actions → AI Maintainer → Run workflow** → enter the issue number.
 
 ---
 
