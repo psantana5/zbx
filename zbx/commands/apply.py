@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -12,6 +13,7 @@ from zbx import formatter
 from zbx.config_loader import ConfigLoader
 from zbx.deployer import Deployer, HostDiff
 from zbx.diff_engine import TemplateDiff
+from zbx.plan_serializer import SavedPlan
 from zbx.zabbix_client import ZabbixAPIError, ZabbixClient
 
 console = Console()
@@ -19,7 +21,9 @@ app = typer.Typer()
 
 
 def apply_cmd(
-    path: Path = typer.Argument(..., help="Path to a YAML file or directory of configs."),
+    path: Optional[Path] = typer.Argument(  # noqa: UP007
+        None, help="Path to a YAML file or directory of configs."
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", "-n", help="Simulate changes without writing to Zabbix."
     ),
@@ -29,8 +33,27 @@ def apply_cmd(
     auto_approve: bool = typer.Option(
         False, "--auto-approve", "-y", help="Skip interactive confirmation."
     ),
+    from_plan: Optional[Path] = typer.Option(  # noqa: UP007
+        None, "--from-plan", help="Apply a previously saved plan file (zbx plan --output)."
+    ),
 ) -> None:
     """Apply configuration to Zabbix (templates, items, triggers, host links, macros)."""
+    # --from-plan: load configs path from the saved plan file
+    saved: SavedPlan | None = None
+    if from_plan:
+        try:
+            saved = SavedPlan.load(from_plan)
+        except ValueError as exc:
+            formatter.print_error(str(exc))
+            raise typer.Exit(1) from exc
+        if path is None:
+            path = saved.configs_path
+        console.print(f"[dim]Loaded plan from [bold]{from_plan}[/bold] "
+                      f"(created {saved.created_at[:19].replace('T', ' ')} UTC)[/dim]")
+    elif path is None:
+        formatter.print_error("Provide a configs path or use --from-plan <file>.")
+        raise typer.Exit(1)
+
     loader = ConfigLoader()
 
     try:
@@ -44,17 +67,24 @@ def apply_cmd(
         console.print("[yellow]No configuration found at the given path.[/yellow]")
         raise typer.Exit(0)
 
-    try:
-        with ZabbixClient(settings) as client:
-            deployer = Deployer(client, dry_run=True)
-            template_diffs = [deployer.plan(t) for t in templates]
-            host_diffs = [deployer.plan_host(h) for h in hosts]
-    except ZabbixAPIError as exc:
-        formatter.print_error(f"Zabbix API: {exc}")
-        raise typer.Exit(1) from exc
+    # If we have a saved plan, show it directly; otherwise compute fresh
+    if saved:
+        template_diffs = saved.template_diffs
+        host_diffs = saved.host_diffs
+        formatter.print_diff(template_diffs, title="Saved Plan")
+        formatter.print_host_diff(host_diffs, title="Saved Plan")
+    else:
+        try:
+            with ZabbixClient(settings) as client:
+                deployer = Deployer(client, dry_run=True)
+                template_diffs = [deployer.plan(t) for t in templates]
+                host_diffs = [deployer.plan_host(h) for h in hosts]
+        except ZabbixAPIError as exc:
+            formatter.print_error(f"Zabbix API: {exc}")
+            raise typer.Exit(1) from exc
 
-    formatter.print_diff(template_diffs, title="Plan")
-    formatter.print_host_diff(host_diffs, title="Plan")
+        formatter.print_diff(template_diffs, title="Plan")
+        formatter.print_host_diff(host_diffs, title="Plan")
 
     no_changes = not any(d.has_changes for d in template_diffs) and \
                  not any(d.has_changes for d in host_diffs)

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 
 from zbx import formatter
 from zbx.config_loader import ConfigLoader
 from zbx.deployer import Deployer
+from zbx.plan_serializer import save_plan
 from zbx.zabbix_client import ZabbixAPIError, ZabbixClient
 
 app = typer.Typer()
@@ -18,6 +20,9 @@ def plan_cmd(
     path: Path = typer.Argument(..., help="Path to a YAML file or directory of configs."),
     env_file: Path = typer.Option(
         Path(".env"), "--env-file", "-e", help="Path to .env file with Zabbix credentials."
+    ),
+    output: Optional[Path] = typer.Option(  # noqa: UP007
+        None, "--output", "-o", help="Save plan to a JSON file for later use with zbx apply --from-plan."
     ),
 ) -> None:
     """Show what changes would be made without applying them."""
@@ -41,3 +46,12 @@ def plan_cmd(
 
     formatter.print_diff(template_diffs, title="Plan")
     formatter.print_host_diff(host_diffs, title="Plan")
+
+    if output:
+        try:
+            save_plan(path, template_diffs, host_diffs, output)
+            formatter.console.print(f"\n[dim]Plan saved to [bold]{output}[/bold]. "
+                                    f"Run [bold]zbx apply --from-plan {output}[/bold] to apply it.[/dim]")
+        except OSError as exc:
+            formatter.print_error(f"Could not write plan file: {exc}")
+            raise typer.Exit(1) from exc
