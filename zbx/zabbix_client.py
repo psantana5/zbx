@@ -250,12 +250,19 @@ class ZabbixClient:
                 "itemid", "name", "key_", "delay", "type",
                 "value_type", "units", "description", "status", "history", "trends",
             ],
-            "selectTriggers": [
-                "triggerid", "description", "expression", "priority", "status", "comments",
-            ],
             "selectDiscoveryRules": ["itemid", "name", "key_", "delay", "type"],
         })
-        return results[0] if results else None
+        if not results:
+            return None
+        tmpl = results[0]
+        # Fetch triggers with expandExpression so expressions are human-readable
+        tmpl["triggers"] = self._call("trigger.get", {
+            "templateids": [tmpl["templateid"]],
+            "output": ["triggerid", "description", "expression", "priority", "status", "comments"],
+            "expandExpression": True,
+            "inherited": False,
+        })
+        return tmpl
 
     def create_template(
         self,

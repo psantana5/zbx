@@ -39,6 +39,8 @@ class ConfigLoader:
         try:
             with path.open() as fh:
                 raw = yaml.safe_load(fh)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Inventory file not found: {path}") from None
         except yaml.YAMLError as exc:
             raise ValueError(f"Invalid YAML in {path}: {exc}") from exc
         if raw is None:

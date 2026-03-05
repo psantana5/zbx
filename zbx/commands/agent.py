@@ -57,7 +57,12 @@ HostArg = Annotated[str, typer.Argument(help="Hostname as defined in the invento
 
 
 def _find_host(inventory_path: Path, hostname: str):
-    inventory = _loader.load_inventory(inventory_path)
+    try:
+        inventory = _loader.load_inventory(inventory_path)
+    except FileNotFoundError as exc:
+        from rich import print as rprint  # noqa: PLC0415
+        rprint(f"[red]fail[/red] Error: {exc}")
+        raise typer.Exit(1) from exc
     for h in inventory.hosts:
         if h.host == hostname:
             return h
@@ -220,7 +225,7 @@ def agent_test_cmd(
         raise typer.Exit(0)
 
     cfg = inv_host.agent
-    keys_to_test = list(cfg.test_keys) + list(key or [])
+    keys_to_test = list(dict.fromkeys(list(cfg.test_keys) + list(key or [])))
     if not keys_to_test:
         rprint("[yellow]![/yellow]  No test_keys configured. Use --key <key> to test ad-hoc.")
         raise typer.Exit(0)

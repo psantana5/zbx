@@ -74,15 +74,15 @@ def apply_cmd(
     t_results: list[TemplateDiff] = []
     h_results: list[HostDiff] = []
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True,
-    ) as progress:
-        total = len(templates) + len(hosts)
-        task = progress.add_task("Applying…", total=total)
-        try:
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True,
+        ) as progress:
+            total = len(templates) + len(hosts)
+            task = progress.add_task("Applying…", total=total)
             with ZabbixClient(settings) as client:
                 deployer = Deployer(client, dry_run=False)
                 for tmpl in templates:
@@ -93,9 +93,9 @@ def apply_cmd(
                     progress.update(task, description=f"Configuring host '{host.host}'…")
                     h_results.append(deployer.apply_host(host))
                     progress.advance(task)
-        except ZabbixAPIError as exc:
-            formatter.print_error(f"Zabbix API: {exc}")
-            raise typer.Exit(1) from exc
+    except ZabbixAPIError as exc:
+        formatter.print_error(f"Zabbix API: {exc}")
+        raise typer.Exit(1) from exc
 
     formatter.print_apply_result(t_results)
     applied_hosts = [h for h in h_results if h.has_changes]

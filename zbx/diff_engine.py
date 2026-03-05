@@ -261,6 +261,7 @@ class DiffEngine:
     ) -> list[FieldChange]:
         changes: list[FieldChange] = []
         _chk = self._chk
+        _chk(changes, "expression", current.get("expression", ""), desired.expression)
         _chk(
             changes,
             "severity",
