@@ -44,40 +44,14 @@ hosts:
       sudo: true
 
       # -- Scripts -----------------------------------------------------------
-      # Any number of scripts can be listed here.
       # zbx compares SHA-256; only redeploys when file content changes.
-      scripts:
-        - source: scripts/getS3Storage.py
-          dest: /usr/local/scripts/zabbix/getS3Storage.py
-          owner: zabbix
-          group: zabbix
-          mode: "0755"
-
-        # Add more scripts as needed, e.g.:
-        # - source: scripts/check_api.py
-        #   dest: /usr/local/scripts/zabbix/check_api.py
-        #   owner: zabbix
-        #   group: zabbix
-        #   mode: "0755"
-        #
-        # - source: scripts/lld-disks.py
-        #   dest: /usr/local/scripts/zabbix/lld-disks.py
-        #   owner: zabbix
-        #   group: zabbix
-        #   mode: "0755"
+      # Use zbx agent deploy <host> --from-check configs/checks/<name>/
+      # to merge a check's scripts and userparameters at deploy time.
+      scripts: []
 
       # -- UserParameters ----------------------------------------------------
       # Each entry becomes one .conf file in zabbix_agentd.d/.
-      # Group related parameters together (one file per monitoring domain).
-      userparameters:
-
-        - name: s3monitor
-          path: /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
-          parameters:
-            - key: s3.user.discover
-              command: /usr/local/scripts/zabbix/getS3Storage.py
-            - key: "s3.user.metrics[*]"
-              command: /usr/local/scripts/zabbix/getS3Storage.py $1 $2 $3
+      userparameters: []
 
         # Add more parameter groups as needed, e.g.:
         # - name: custom_simple
