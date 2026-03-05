@@ -22,6 +22,16 @@ on:
     paths:
       - "configs/**"
       - "inventory.yaml"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which job to run"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
 
 env:
   CONFIGS_PATH: ${{ vars.CONFIGS_PATH || 'configs/' }}
@@ -31,7 +41,7 @@ jobs:
   plan:
     name: zbx plan
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'plan')
     permissions:
       pull-requests: write   # needed to post the plan as a PR comment
 
@@ -66,7 +76,7 @@ jobs:
 
       - name: Post plan as PR comment
         uses: actions/github-script@v7
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         with:
           script: |
             const fs = require('fs');
@@ -108,7 +118,7 @@ jobs:
   apply:
     name: zbx apply
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'apply')
     environment: production   # optional: require manual approval gate
 
     steps:
