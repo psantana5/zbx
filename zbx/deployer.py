@@ -281,6 +281,7 @@ class Deployer:
             trends="0" if item.value_type in _no_trends else item.trends,
             status=0 if item.enabled else 1,
             params=item.params,
+            tags=[{"tag": t.tag, "value": t.value} for t in item.tags],
         )
         if item.url is not None:
             kwargs["url"] = item.url
@@ -327,6 +328,7 @@ class Deployer:
             priority=trigger.severity.zabbix_id,
             comments=trigger.description,
             status=0 if trigger.enabled else 1,
+            tags=[{"tag": t.tag, "value": t.value} for t in trigger.tags],
         )
         if trigger.recovery_expression:
             kwargs["recovery_mode"] = 1

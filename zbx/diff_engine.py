@@ -189,6 +189,15 @@ class DiffEngine:
                 )
         return changes
 
+    @staticmethod
+    def _tags_sig(tags: list[Any]) -> str:
+        """Canonical string for a tag list for comparison."""
+        return "|".join(sorted(f"{t.tag}={t.value}" for t in tags))
+
+    @staticmethod
+    def _tags_sig_from_raw(tags: list[dict[str, str]]) -> str:
+        return "|".join(sorted(f"{t.get('tag','')}={t.get('value','')}" for t in tags))
+
     def _diff_item_fields(self, desired: Item, current: dict[str, Any]) -> list[FieldChange]:
         changes: list[FieldChange] = []
         _chk = self._chk
@@ -213,6 +222,12 @@ class DiffEngine:
         _no_trends = {ItemValueType.char, ItemValueType.log, ItemValueType.text}
         effective_trends = "0" if desired.value_type in _no_trends else desired.trends
         _chk(changes, "trends", current.get("trends", "365d"), effective_trends)
+        # Compare tags
+        _chk(
+            changes, "tags",
+            self._tags_sig_from_raw(current.get("tags", [])),
+            self._tags_sig(desired.tags),
+        )
         return changes
 
     # ------------------------------------------------------------------
@@ -278,6 +293,11 @@ class DiffEngine:
         _chk(changes, "description", current.get("comments", ""), desired.description)
         current_enabled = current.get("status", "0") == "0"
         _chk(changes, "enabled", current_enabled, desired.enabled)
+        _chk(
+            changes, "tags",
+            self._tags_sig_from_raw(current.get("tags", [])),
+            self._tags_sig(desired.tags),
+        )
         return changes
 
     # ------------------------------------------------------------------
