@@ -19,6 +19,7 @@ from zbx.models import (
     ItemValueType,
     Template,
     Trigger,
+    TriggerPrototype,
     TriggerSeverity,
 )
 from zbx.zabbix_client import ZabbixAPIError, ZabbixClient
@@ -133,6 +134,18 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
             )
             for p in rule.get("itemPrototypes", [])
         ]
+        trig_protos = [
+            TriggerPrototype(
+                name=tp["description"],
+                expression=tp["expression"],
+                severity=TriggerSeverity.from_zabbix_id(int(tp.get("priority", 0))),
+                recovery_expression=tp.get("recovery_expression", ""),
+                description=tp.get("comments", ""),
+                allow_manual_close=tp.get("manual_close", "0") == "1",
+                enabled=tp.get("status", "0") == "0",
+            )
+            for tp in rule.get("triggerPrototypes", [])
+        ]
         discovery_rules.append(
             DiscoveryRule(
                 name=rule["name"],
@@ -140,6 +153,7 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
                 interval=rule.get("delay", "1h"),
                 type=ItemType.from_zabbix_id(int(rule.get("type", 0))),
                 item_prototypes=prototypes,
+                trigger_prototypes=trig_protos,
             )
         )
 
@@ -195,12 +209,26 @@ def _template_to_yaml(template: Template) -> str:
             d["units"] = p.units
         return d
 
+    def _trig_proto_dict(tp: TriggerPrototype) -> dict:  # type: ignore[type-arg]
+        d: dict = {"name": tp.name, "expression": tp.expression, "severity": tp.severity.value}  # type: ignore[type-arg]
+        if tp.recovery_expression:
+            d["recovery_expression"] = tp.recovery_expression
+        if tp.description:
+            d["description"] = tp.description
+        if tp.allow_manual_close:
+            d["allow_manual_close"] = True
+        if not tp.enabled:
+            d["enabled"] = False
+        return d
+
     def _rule_dict(rule: DiscoveryRule) -> dict:  # type: ignore[type-arg]
         d: dict = {"name": rule.name, "key": rule.key, "interval": rule.interval}  # type: ignore[type-arg]
         if rule.description:
             d["description"] = rule.description
         if rule.item_prototypes:
             d["item_prototypes"] = [_proto_dict(p) for p in rule.item_prototypes]
+        if rule.trigger_prototypes:
+            d["trigger_prototypes"] = [_trig_proto_dict(tp) for tp in rule.trigger_prototypes]
         return d
 
     doc: dict = {"template": template.template}  # type: ignore[type-arg]

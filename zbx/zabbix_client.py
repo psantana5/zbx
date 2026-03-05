@@ -407,6 +407,7 @@ class ZabbixClient:
                 "triggerid", "description", "expression",
                 "priority", "status", "recovery_expression", "manual_close",
             ],
+            "expandExpression": True,
         })
 
     def create_trigger_prototype(self, data: dict[str, Any]) -> str:
@@ -427,19 +428,33 @@ class ZabbixClient:
             "output": "extend",
             "selectGroups": ["groupid", "name"],
             "selectItems": "extend",
-            "selectTriggers": "extend",
             "selectDiscoveryRules": "extend",
         })
         if not results:
             return None
         tmpl = results[0]
-        # Enrich each discovery rule with its item prototypes
+        # Fetch triggers separately with expandExpression to get human-readable expressions
+        tmpl["triggers"] = self._call("trigger.get", {
+            "templateids": [templateid],
+            "output": ["triggerid", "description", "expression", "priority",
+                       "status", "comments", "recovery_expression", "recovery_mode"],
+            "expandExpression": True,
+            "inherited": False,
+        })
+        # Enrich each discovery rule with item prototypes and trigger prototypes
         for rule in tmpl.get("discoveryRules", []):
             rule["itemPrototypes"] = self.get_item_prototypes(rule["itemid"])
+            rule["triggerPrototypes"] = self.get_trigger_prototypes(rule["itemid"])
         return tmpl
 
     def find_templates(self, search: str) -> list[dict[str, Any]]:
-        """Search templates by name (case-insensitive partial match)."""
+        """Search templates by name. Prefers exact match; falls back to partial."""
+        exact = self._call("template.get", {  # type: ignore[return-value]
+            "filter": {"host": [search]},
+            "output": ["templateid", "host", "name", "description"],
+        })
+        if exact:
+            return exact
         return self._call("template.get", {  # type: ignore[return-value]
             "search": {"host": search, "name": search},
             "searchByAny": True,

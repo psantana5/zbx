@@ -54,6 +54,7 @@ class TemplateDiff:
     template_id: str | None
     field_changes: list[FieldChange] = field(default_factory=list)
     resource_changes: list[ResourceChange] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def has_changes(self) -> bool:
@@ -84,11 +85,13 @@ class DiffEngine:
         self, desired: Template, current: dict[str, Any] | None
     ) -> TemplateDiff:
         if current is None:
+            _, warnings = self._diff_discovery_rules(desired.discovery_rules, [])
             return TemplateDiff(
                 template_name=desired.template,
                 template_change=ChangeType.ADD,
                 template_id=None,
                 resource_changes=self._all_resources_as_add(desired),
+                warnings=warnings,
             )
 
         template_id = str(current["templateid"])
@@ -99,11 +102,10 @@ class DiffEngine:
         resource_changes.extend(
             self._diff_triggers(desired.triggers, current.get("triggers", []))
         )
-        resource_changes.extend(
-            self._diff_discovery_rules(
-                desired.discovery_rules, current.get("discoveryRules", [])
-            )
+        rule_changes, warnings = self._diff_discovery_rules(
+            desired.discovery_rules, current.get("discoveryRules", [])
         )
+        resource_changes.extend(rule_changes)
 
         has_any_change = bool(field_changes) or any(
             r.type != ChangeType.UNCHANGED for r in resource_changes
@@ -116,6 +118,7 @@ class DiffEngine:
             template_id=template_id,
             field_changes=field_changes,
             resource_changes=resource_changes,
+            warnings=warnings,
         )
 
     # ------------------------------------------------------------------
@@ -277,12 +280,27 @@ class DiffEngine:
         self,
         desired_rules: list[DiscoveryRule],
         current_rules: list[dict[str, Any]],
-    ) -> list[ResourceChange]:
+    ) -> tuple[list[ResourceChange], list[str]]:
         current_by_key = {r["key_"]: r for r in current_rules}
         desired_keys = {r.key for r in desired_rules}
         changes: list[ResourceChange] = []
+        warnings: list[str] = []
 
         for rule in desired_rules:
+            # Validate dependent item prototype master references
+            non_dep_keys = {
+                p.key for p in rule.item_prototypes
+                if p.type != ItemType.dependent
+            }
+            for proto in rule.item_prototypes:
+                if proto.type == ItemType.dependent and proto.master_item_key:
+                    if proto.master_item_key not in non_dep_keys:
+                        warnings.append(
+                            f"'{rule.name}': dependent item '{proto.name}' references "
+                            f"master_item_key '{proto.master_item_key}' which does not "
+                            f"exist in the same discovery rule — it will be skipped during apply."
+                        )
+
             cur = current_by_key.get(rule.key)
             if cur is None:
                 changes.append(
@@ -319,7 +337,7 @@ class DiffEngine:
                         resource_id=str(cur["itemid"]),
                     )
                 )
-        return changes
+        return changes, warnings
 
     # ------------------------------------------------------------------
     # Helpers

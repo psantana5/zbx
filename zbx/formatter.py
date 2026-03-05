@@ -73,6 +73,13 @@ def _print_template_diff(diff: TemplateDiff) -> None:
             continue
         lines.append(_format_resource_change(rc))
 
+    # Warnings (e.g. unresolvable master_item_key)
+    for w in diff.warnings:
+        line = Text()
+        line.append("  ! ", style="bold yellow")
+        line.append(w, style="yellow")
+        lines.append(line)
+
     body = Text("\n").join(lines) if lines else Text("")
 
     panel = Panel(body, title=header, title_align="left", border_style=col, padding=(0, 1))
