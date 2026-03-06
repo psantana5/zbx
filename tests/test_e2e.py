@@ -501,9 +501,7 @@ class TestTemplateMacros:
         """Applying a template with macros should create them on Zabbix."""
         template_cleanup(unique_name)
         p = tmp_yaml(macro_template(unique_name))
-        run("apply", str(p))
-
-        tpl = client.find_templates(unique_name)
+        run("apply", str(p), "--auto-approve")
         assert tpl, "template not found"
         tid = tpl[0]["templateid"]
         raw_macros = client._call("usermacro.get", {"hostids": [tid], "output": "extend"})
@@ -515,7 +513,7 @@ class TestTemplateMacros:
         """After applying macros, plan should report no changes."""
         template_cleanup(unique_name)
         p = tmp_yaml(macro_template(unique_name))
-        run("apply", str(p))
+        run("apply", str(p), "--auto-approve")
         r2 = run("plan", str(p))
         assert "no changes" in r2.stdout.lower(), f"Expected no changes, got:\n{r2.stdout}"
 
@@ -524,7 +522,7 @@ class TestTemplateMacros:
         template_cleanup(unique_name)
         tmpl = macro_template(unique_name)
         p = tmp_yaml(tmpl)
-        run("apply", str(p))
+        run("apply", str(p), "--auto-approve")
 
         # Now change the value
         tmpl["macros"][0]["value"] = "90"
@@ -538,7 +536,7 @@ class TestTemplateMacros:
         """Exported YAML should contain the macros block."""
         template_cleanup(unique_name)
         p = tmp_yaml(macro_template(unique_name))
-        run("apply", str(p))
+        run("apply", str(p), "--auto-approve")
 
         r = run("export", unique_name)
         assert r.returncode == 0
@@ -553,12 +551,12 @@ class TestTemplateMacros:
         template_cleanup(unique_name)
         tmpl = macro_template(unique_name)
         p = tmp_yaml(tmpl)
-        run("apply", str(p))
+        run("apply", str(p), "--auto-approve")
 
         # Remove one macro
         tmpl["macros"] = [tmpl["macros"][0]]  # keep only CPU one
         p2 = tmp_yaml(tmpl, "reduced.yaml")
-        run("apply", str(p2))
+        run("apply", str(p2), "--auto-approve")
 
         # Verify plan shows no changes
         r = run("plan", str(p2))
