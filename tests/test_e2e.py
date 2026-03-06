@@ -314,9 +314,14 @@ class TestExport:
         assert "params" in items_by_key.get("system.cpu.load.percpu", {})
 
         rules_by_key = {r["key"]: r for r in data.get("discovery_rules", [])}
+        assert "vfs.fs.dependent.discovery" in rules_by_key, (
+            f"Dependent LLD rule missing from export. "
+            f"Got rule keys: {list(rules_by_key.keys())}. "
+            f"Full YAML stdout:\n{r.stdout[:3000]}"
+        )
         dep_rule = rules_by_key.get("vfs.fs.dependent.discovery", {})
-        assert dep_rule.get("type") == "dependent"
-        assert dep_rule.get("master_item_key") == "vfs.fs.get"
+        assert dep_rule.get("type") == "dependent", f"dep_rule contents: {dep_rule}"
+        assert dep_rule.get("master_item_key") == "vfs.fs.get", f"dep_rule contents: {dep_rule}"
         assert "filter" in dep_rule
 
         net_rule = rules_by_key.get("net.if.discovery", {})
@@ -400,8 +405,13 @@ class TestFullRestore:
         assert "params" in items_by_key.get("system.cpu.load.percpu", {}), "calculated item missing params"
 
         rules_by_key = {r["key"]: r for r in exported_data.get("discovery_rules", [])}
+        assert "vfs.fs.dependent.discovery" in rules_by_key, (
+            f"Dependent LLD rule missing from exported YAML. "
+            f"Got rule keys: {list(rules_by_key.keys())}. "
+            f"Full YAML:\n{exported_yaml[:3000]}"
+        )
         dep_rule = rules_by_key.get("vfs.fs.dependent.discovery", {})
-        assert dep_rule.get("master_item_key") == "vfs.fs.get", "dependent rule missing master_item_key"
+        assert dep_rule.get("master_item_key") == "vfs.fs.get", f"dep_rule: {dep_rule}"
 
         # Step 2: Delete
         matches = client.find_templates(unique_name)
