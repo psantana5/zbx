@@ -1,0 +1,51 @@
+name: Autonomous Worker
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      budget_minutes:
+        description: "Budget in minutes (default 90)"
+        default: "90"
+        type: string
+      focus:
+        description: "Focus area"
+        default: "auto"
+        type: choice
+        options: [auto, tests, reliability, docs, features]
+
+concurrency:
+  group: autonomous-worker
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" "openai>=1.0" requests
+
+      - name: Run worker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BUDGET_MINUTES: ${{ github.event.inputs.budget_minutes || '90' }}
+          FOCUS: ${{ github.event.inputs.focus || 'auto' }}
+        run: python .github/scripts/worker.py
