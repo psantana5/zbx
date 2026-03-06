@@ -55,7 +55,7 @@ cmd "zbx diff configs/checks/postgresql/"
 pause
 
 say "7. Export an existing template to YAML"
-cmd "zbx export 'Linux by Zabbix agent'"
+cmd "zbx export 'Windows by Zabbix agent'"
 pause
 
 say "8. Saved plans for CI/CD gating"
