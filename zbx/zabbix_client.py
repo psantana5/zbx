@@ -261,7 +261,8 @@ class ZabbixClient:
                 "itemid", "name", "key_", "delay", "type",
                 "value_type", "units", "description", "status", "history", "trends",
             ],
-            "selectDiscoveryRules": ["itemid", "name", "key_", "delay", "type", "master_itemid"],
+            # NOTE: selectDiscoveryRules intentionally omitted — returns empty on 6.4/7.0.
+            # Discovery rules are fetched via discoveryrule.get below.
         })
         if not results:
             return None
@@ -286,23 +287,19 @@ class ZabbixClient:
             "expandExpression": True,
             "inherited": False,
         })
-        # Enrich discovery rules with their filter conditions and existing prototypes
-        if tmpl.get("discoveryRules"):
-            rules_with_filter = self._call("discoveryrule.get", {
-                "templateids": [tmpl["templateid"]],
-                "output": ["itemid"],
-                "selectFilter": "extend",
-                "selectItems": ["itemid", "name", "key_"],
-                "selectTriggers": ["triggerid", "description"],
-            })
-            for r in rules_with_filter:
-                rid = r["itemid"]
-                for rule in tmpl["discoveryRules"]:
-                    if rule["itemid"] == rid:
-                        rule["filter"] = r.get("filter", {})
-                        rule["itemPrototypes"] = r.get("items", [])
-                        rule["triggerPrototypes"] = r.get("triggers", [])
-                        break
+        # Always fetch discovery rules via discoveryrule.get (reliable on all versions)
+        raw_rules: list[dict[str, Any]] = self._call("discoveryrule.get", {  # type: ignore[assignment]
+            "templateids": [tmpl["templateid"]],
+            "output": ["itemid", "name", "key_", "delay", "type", "master_itemid"],
+            "selectFilter": "extend",
+            "selectItems": ["itemid", "name", "key_"],
+            "selectTriggers": ["triggerid", "description"],
+        })
+        # Rename sub-entity keys to match what the diff engine expects
+        for rule in raw_rules:
+            rule["itemPrototypes"] = rule.pop("items", [])
+            rule["triggerPrototypes"] = rule.pop("triggers", [])
+        tmpl["discoveryRules"] = raw_rules
         return tmpl
 
     def create_template(
