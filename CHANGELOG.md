@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.1] — 2026-03-06
+
+### Fixed
+- **Zabbix 6.4 / 7.0 compatibility**: `template.get` with `selectDiscoveryRules` silently returns an empty list on Zabbix 6.4 and 7.0. All discovery-rule fetching now uses `discoveryrule.get` with `templateids`, which is reliable on all supported versions (6.4, 7.0, 7.4+).
+- `zbx export` — exported YAML previously had no `discovery_rules` section on Zabbix 6.4/7.0.
+- `zbx plan` / `zbx diff` — discovery rules were always shown as "to add" (never detected as existing) on Zabbix 6.4/7.0.
+
+---
+
 ## [0.6.0] — 2026-03-06
 
 ### Added
