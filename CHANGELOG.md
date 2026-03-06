@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.1] — 2026-03-06
+
+### Fixed
+- `zbx/agent_deployer.py`: SSH connect timeout was hardcoded to 30 s — now reads `ZBX_SSH_TIMEOUT` env var (default: `30`).
+- `zbx/commands/init.py`: connection test timeout was hardcoded to 8 s — now reads `ZBX_INIT_TIMEOUT` env var (default: `10`).
+- `zbx/checks/ssl-cert/check.yaml`: `test_keys` entry contained literal `localhost:443` — replaced with `{$SSL_TEST_HOST}` macro (default: `example.com:443`).
+- `zbx/checks/jvm-jolokia/check.yaml`: description referenced `localhost:8778` — replaced with `{HOST.CONN}:{$JOLOKIA_PORT}`; added `{$JOLOKIA_PORT}` macro (default: `8778`).
+- `scripts/check_apache.py`: status URL and timeout were hardcoded — now read from `APACHE_STATUS_URL` / `APACHE_TIMEOUT` env vars (consistent with all other check scripts).
+- `.github/scripts/worker.py`: `REPO` no longer has a hardcoded `psantana5/zbx` default — auto-detected from `git remote get-url origin` at runtime.
+
+### Documentation
+- README: added env vars table (`ZBX_TIMEOUT`, `ZBX_SSH_TIMEOUT`, `ZBX_INIT_TIMEOUT`, `ZBX_PROFILE`) to Configuration section.
+- README: `zbx init` fully documented in Quick Start (step 0) and Commands section.
+- README: added *Customising check macros* example and monitoring script env vars table to Bundled Checks section.
+- README: `owner`/`group` fields in YAML Schema Reference marked as overridable.
+
+---
+
 ## [0.5.0] — 2026-03-06
 
 ### Added
