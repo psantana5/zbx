@@ -1,0 +1,84 @@
+name: Zabbix API Compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"   # weekly on Monday at 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  compat:
+    name: "Zabbix ${{ matrix.zabbix_version }} / Python ${{ matrix.python_version }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - zabbix_version: "6.4"
+            zabbix_image: "zabbix/zabbix-appliance:ubuntu-6.4-latest"
+            python_version: "3.11"
+          - zabbix_version: "7.0"
+            zabbix_image: "zabbix/zabbix-appliance:ubuntu-7.0-latest"
+            python_version: "3.12"
+
+    services:
+      zabbix:
+        image: ${{ matrix.zabbix_image }}
+        ports:
+          - 80:80
+          - 10051:10051
+        env:
+          DB_SERVER_HOST: 127.0.0.1
+        options: >-
+          --health-cmd "curl -sf http://localhost/api_jsonrpc.php -d '{\"jsonrpc\":\"2.0\",\"method\":\"apiinfo.version\",\"params\":[],\"id\":1}' -H 'Content-Type: application/json' | grep -q result"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 20
+          --health-start-period 60s
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Wait for Zabbix to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost/api_jsonrpc.php \
+              -H 'Content-Type: application/json' \
+              -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":[],"id":1}' \
+              | grep -q '"result"'; then
+              echo "Zabbix ${{ matrix.zabbix_version }} API is ready"
+              break
+            fi
+            echo "Attempt $i — waiting..."
+            sleep 10
+          done
+
+      - name: Run e2e tests against Zabbix ${{ matrix.zabbix_version }}
+        env:
+          ZBX_URL: http://localhost/zabbix
+          ZBX_USER: Admin
+          ZBX_PASSWORD: zabbix
+          ZBX_VERIFY_SSL: "false"
+        run: |
+          python -m pytest tests/test_e2e.py -v --tb=short \
+            -m "not skip_compat" \
+            --junit-xml=test-results-zabbix-${{ matrix.zabbix_version }}.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-zabbix-${{ matrix.zabbix_version }}-py${{ matrix.python_version }}
+          path: test-results-zabbix-${{ matrix.zabbix_version }}.xml

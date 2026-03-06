@@ -4,6 +4,7 @@ Commands:
     zbx check list              Table of all bundled checks
     zbx check info <name>       Show template details for a check
     zbx check install <name>    Copy check to configs/checks/ then apply to Zabbix
+    zbx check update [name]     Update installed check(s) from bundled package version
 """
 
 from __future__ import annotations
@@ -268,3 +269,106 @@ def check_install(
     except SystemExit:
         pass
 
+
+
+# ---------------------------------------------------------------------------
+# zbx check update
+# ---------------------------------------------------------------------------
+
+@app.command("update")
+def check_update(
+    name: Annotated[Optional[str], typer.Argument(help="Check name to update. Omit to update all installed checks.")] = None,
+    dest: Annotated[Path, typer.Option("--dest", "-d",
+        help="Destination directory (default: configs/checks/)")] = _DEFAULT_CHECKS_DIR,
+    dry_run: Annotated[bool, typer.Option("--dry-run", "-n",
+        help="Show what would change without writing files.")] = False,
+) -> None:
+    """Update installed check(s) from the bundled package version.
+
+    Overwrites the YAML files in configs/checks/<name>/ with the latest
+    version shipped in the currently installed zbxctl package.
+    Scripts (.py, .sh) are also refreshed.
+
+    Examples:
+      zbx check update postgresql        # update one check
+      zbx check update                   # update all installed checks
+      zbx check update --dry-run         # preview changes only
+    """
+    import filecmp  # noqa: PLC0415
+
+    bundled_root = _bundled_checks_dir()
+
+    # Determine which checks to update
+    if name:
+        bundled_src = _resolve_bundled(name)
+        targets = [(bundled_src, dest / bundled_src.name)]
+    else:
+        installed = [d for d in dest.iterdir() if d.is_dir()] if dest.exists() else []
+        if not installed:
+            rprint(f"[yellow]![/yellow] No checks installed at {dest}. Run [bold]zbx check install <name>[/bold] first.")
+            raise typer.Exit(0)
+        targets = []
+        for inst in sorted(installed):
+            bundled = bundled_root / inst.name
+            if bundled.exists():
+                targets.append((bundled, inst))
+            else:
+                rprint(f"[dim]  skip {inst.name} — no bundled version found[/dim]")
+
+    if not targets:
+        rprint("[yellow]![/yellow] Nothing to update.")
+        raise typer.Exit(0)
+
+    console.print()
+    total_updated = 0
+
+    for bundled_src, target in targets:
+        if not target.exists():
+            rprint(f"[yellow]  {target.name}[/yellow]  not installed — skipping (use [bold]zbx check install {target.name}[/bold])")
+            continue
+
+        # Compare files
+        changed: list[tuple[str, str]] = []  # (filename, status)
+        for src_file in sorted(bundled_src.rglob("*")):
+            if src_file.is_dir():
+                continue
+            rel = src_file.relative_to(bundled_src)
+            dst_file = target / rel
+            if not dst_file.exists():
+                changed.append((str(rel), "new"))
+            elif not filecmp.cmp(src_file, dst_file, shallow=False):
+                changed.append((str(rel), "changed"))
+
+        if not changed:
+            console.print(f"[green]✓[/green]  [bold]{target.name}[/bold]  already up to date")
+            continue
+
+        console.print(f"[bold]{target.name}[/bold]")
+        for fname, status in changed:
+            colour = "cyan" if status == "new" else "yellow"
+            symbol = "+" if status == "new" else "~"
+            console.print(f"  [{colour}]{symbol}[/{colour}]  {fname}  [dim]({status})[/dim]")
+
+        if dry_run:
+            console.print(f"  [dim](dry-run — no files written)[/dim]")
+            continue
+
+        # Overwrite with bundled version (preserve any extra user files)
+        for src_file in bundled_src.rglob("*"):
+            if src_file.is_dir():
+                continue
+            rel = src_file.relative_to(bundled_src)
+            dst_file = target / rel
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+
+        console.print(f"  [green]✓[/green]  Updated {len(changed)} file(s)")
+        total_updated += 1
+
+    console.print()
+    if dry_run:
+        rprint("[dim]Dry-run complete. Run without --dry-run to apply changes.[/dim]")
+    elif total_updated:
+        rprint(f"[green]✓[/green] Updated [bold]{total_updated}[/bold] check(s). Run [bold]zbx apply configs/checks/[/bold] to push to Zabbix.")
+    else:
+        rprint("[green]✓[/green] All checks are already up to date.")
