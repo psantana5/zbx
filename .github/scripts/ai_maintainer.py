@@ -110,6 +110,62 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "append_to_file",
+            "description": "Append text to the end of an existing file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "File path relative to repo root."},
+                    "content": {"type": "string", "description": "Text to append."},
+                },
+                "required": ["path", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_code",
+            "description": "Search for a pattern across the repository using grep. Returns matching lines with file:line context.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string", "description": "Regex or literal search string."},
+                    "path": {"type": "string", "description": "Directory or file to search in (default: whole repo)."},
+                    "file_glob": {"type": "string", "description": "File glob filter, e.g. '*.py' (optional)."},
+                },
+                "required": ["pattern"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_tests",
+            "description": "Run the unit test suite (tests/test_models.py and tests/test_diff_engine.py). Returns pass/fail summary.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_shell",
+            "description": (
+                "Run a safe read-only shell command (ls, cat, grep, python3 -c, zbx validate, etc.). "
+                "Do NOT use for destructive operations — use write_file instead of shell redirects."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Shell command to run."},
+                },
+                "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "validate",
             "description": (
                 "Run `zbx validate <path>` to check YAML schema correctness. "
@@ -203,6 +259,71 @@ def tool_write_file(path: str, content: str) -> str:
         return f"ERROR: {exc}"
 
 
+def tool_append_to_file(path: str, content: str) -> str:
+    p = REPO_ROOT / path
+    try:
+        with p.open("a") as f:
+            f.write(content)
+        return f"OK: appended {len(content)} chars to {path}"
+    except FileNotFoundError:
+        return f"ERROR: file not found: {path}"
+    except Exception as exc:  # noqa: BLE001
+        return f"ERROR: {exc}"
+
+
+def tool_search_code(pattern: str, path: str = ".", file_glob: str = "") -> str:
+    cmd = ["grep", "-rn", "--include", file_glob or "*", pattern, path]
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT, timeout=15)
+    output = result.stdout.strip()
+    if not output:
+        return "No matches found."
+    lines = output.splitlines()
+    if len(lines) > 60:
+        lines = lines[:60]
+        lines.append(f"... ({len(output.splitlines()) - 60} more lines truncated)")
+    return "\n".join(lines)
+
+
+def tool_run_tests() -> str:
+    result = subprocess.run(
+        ["python3", "-m", "pytest", "tests/test_models.py", "tests/test_diff_engine.py",
+         "-v", "--tb=short", "-q"],
+        capture_output=True, text=True, timeout=120, cwd=REPO_ROOT,
+    )
+    output = (result.stdout + result.stderr).strip()
+    # Truncate to last 100 lines to keep context manageable
+    lines = output.splitlines()
+    if len(lines) > 100:
+        output = "\n".join(lines[-100:])
+    return output
+
+
+# Allowed prefixes for run_shell — prevents destructive use
+_SHELL_ALLOWLIST = (
+    "ls", "cat", "head", "tail", "grep", "find", "wc", "echo",
+    "python3 -c", "python3 -m", "zbx validate", "zbx schema",
+    "git log", "git diff", "git status", "git tag",
+)
+
+
+def tool_run_shell(command: str) -> str:
+    first_word = command.strip().split()[0] if command.strip() else ""
+    allowed = any(command.strip().startswith(p) for p in _SHELL_ALLOWLIST)
+    if not allowed:
+        return (
+            f"DENIED: '{first_word}' is not in the allowlist. "
+            "Use write_file for writes, run_tests for tests."
+        )
+    result = subprocess.run(
+        command, shell=True, capture_output=True, text=True,  # noqa: S602
+        timeout=30, cwd=REPO_ROOT,
+    )
+    output = (result.stdout + result.stderr).strip()
+    if len(output) > 4000:
+        output = output[:4000] + "\n... (truncated)"
+    return output or f"(exit {result.returncode}, no output)"
+
+
 def tool_validate(path: str) -> str:
     result = subprocess.run(
         ["zbx", "validate", path],
@@ -222,6 +343,14 @@ def dispatch_tool(name: str, args: dict) -> str:
         return tool_list_files(args["directory"])
     if name == "write_file":
         return tool_write_file(args["path"], args["content"])
+    if name == "append_to_file":
+        return tool_append_to_file(args["path"], args["content"])
+    if name == "search_code":
+        return tool_search_code(args["pattern"], args.get("path", "."), args.get("file_glob", ""))
+    if name == "run_tests":
+        return tool_run_tests()
+    if name == "run_shell":
+        return tool_run_shell(args["command"])
     if name == "validate":
         return tool_validate(args["path"])
     return f"ERROR: unknown tool '{name}'"
