@@ -1,0 +1,528 @@
+template: HP Enterprise Switch by SNMP
+description: "Template Net HP Enterprise Switch\r\n\r\nMIBs used:\r\nNETSWITCH-MIB\r\
+  \nHP-ICF-CHASSIS\r\nENTITY-SENSORS-MIB\r\nIF-MIB\r\nEtherLike-MIB\r\nSEMI-MIB\r\n\
+  HOST-RESOURCES-MIB\r\nSNMPv2-MIB\r\nENTITY-MIB\r\nSTATISTICS-MIB\r\n\r\nGenerated\
+  \ by official Zabbix template tool \"Templator\""
+groups:
+- Templates
+items:
+- name: ICMP ping
+  key: icmpping
+  interval: 1m
+  type: simple_check
+  value_type: unsigned
+  description: "The host accessibility by ICMP ping.\r\n\r\n0 - ICMP ping fails;\r\
+    \n1 - ICMP ping successful."
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+  - tag: component
+    value: network
+- name: ICMP loss
+  key: icmppingloss
+  interval: 1m
+  type: simple_check
+  units: '%'
+  description: The percentage of lost packets.
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+  - tag: component
+    value: network
+- name: ICMP response time
+  key: icmppingsec
+  interval: 1m
+  type: simple_check
+  units: s
+  description: The ICMP ping response time (in seconds).
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+  - tag: component
+    value: network
+- name: SNMP traps (fallback)
+  key: snmptrap.fallback
+  interval: '0'
+  type: snmp_trap
+  value_type: log
+  description: The item is used to collect all SNMP traps unmatched by other snmptrap
+    items
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: network
+- name: System contact details
+  key: system.contact[sysContact.0]
+  interval: 15m
+  value_type: char
+  description: "MIB: SNMPv2-MIB\r\nThe textual identification of the contact person\
+    \ for this managed node, together with information on how to contact this person.\
+    \ If no contact information is known, the value is the zero-length string."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: CPU utilization
+  key: system.cpu.util[hpSwitchCpuStat.0]
+  interval: 1m
+  units: '%'
+  description: "MIB: STATISTICS-MIB\r\nThe CPU utilization in percent(%).\r\nReference:\
+    \ http://h20564.www2.hpe.com/hpsc/doc/public/display?docId=emr_na-c02597344&sp4ts.oid=51079"
+  history: 31d
+  tags:
+  - tag: component
+    value: cpu
+- name: System description
+  key: system.descr[sysDescr.0]
+  interval: 15m
+  value_type: char
+  description: "MIB: SNMPv2-MIB\r\nA textual description of the entity. This value\
+    \ should\r\ninclude the full name and version identification of the system's hardware\
+    \ type, software operating-system, and\r\nnetworking software."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: Firmware version
+  key: system.hw.firmware
+  interval: 1h
+  value_type: char
+  description: "MIB: NETSWITCH-MIB\r\nContains the operating code version number (also\
+    \ known as software or firmware).\r\nFor example, a software version such as A.08.01\
+    \ is described as follows:\r\nA    the function set available in your router\r\
+    \n08   the common release number\r\n01   updates to the current common release"
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: Hardware serial number
+  key: system.hw.serialnumber
+  interval: 1h
+  value_type: char
+  description: 'MIB: SEMI-MIB'
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: Uptime (hardware)
+  key: system.hw.uptime[hrSystemUptime.0]
+  interval: 30s
+  value_type: unsigned
+  units: uptime
+  description: "MIB: HOST-RESOURCES-MIB\r\nThe amount of time since this host was\
+    \ last initialized. Note that this is different from sysUpTime in the SNMPv2-MIB\
+    \ [RFC1907] because sysUpTime is the uptime of the network management portion\
+    \ of the system."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: System location
+  key: system.location[sysLocation.0]
+  interval: 15m
+  value_type: char
+  description: "MIB: SNMPv2-MIB\r\nPhysical location of the node (e.g., `equipment\
+    \ room`, `3rd floor`). If not provided, the value is a zero-length string."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: System name
+  key: system.name
+  interval: 15m
+  value_type: char
+  description: "MIB: SNMPv2-MIB\r\nAn administratively-assigned name for this managed\
+    \ node.By convention, this is the node's fully-qualified domain name. If the name\
+    \ is unknown, the value is the zero-length string."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: Uptime (network)
+  key: system.net.uptime[sysUpTime.0]
+  interval: 30s
+  value_type: unsigned
+  units: uptime
+  description: "MIB: SNMPv2-MIB\r\nTime (in hundredths of a second) since the network\
+    \ management portion of the system was last re-initialized."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: System object ID
+  key: system.objectid[sysObjectID.0]
+  interval: 15m
+  value_type: char
+  description: "MIB: SNMPv2-MIB\r\nThe vendor's authoritative identification of the\
+    \ network management subsystem contained in the entity. This value is allocated\
+    \ within the SMI enterprises subtree (1.3.6.1.4.1) and provides an easy and unambiguous\
+    \ means for determining`what kind of box' is being managed.  For example, if vendor`Flintstones,\
+    \ Inc.' was assigned the subtree1.3.6.1.4.1.4242, it could assign the identifier\
+    \ 1.3.6.1.4.1.4242.1.1 to its `Fred Router'."
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: system
+- name: SNMP agent availability
+  key: zabbix[host,snmp,available]
+  interval: 1m
+  type: zabbix_internal
+  value_type: unsigned
+  description: "Availability of SNMP checks on the host. The value of this item corresponds\
+    \ to availability icons in the host list.\r\nPossible values:\r\n0 - not available\r\
+    \n1 - available\r\n2 - unknown"
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+  - tag: component
+    value: network
+triggers:
+- name: 'HP Enterprise Switch: Unavailable by ICMP ping'
+  expression: max(/HP Enterprise Switch by SNMP/icmpping,#3)=0
+  severity: high
+  description: Last three attempts returned timeout. Please check device connectivity.
+  tags:
+  - tag: scope
+    value: availability
+- name: 'HP Enterprise Switch: High ICMP ping loss'
+  expression: min(/HP Enterprise Switch by SNMP/icmppingloss,5m)>20 and min(/HP Enterprise
+    Switch by SNMP/icmppingloss,5m)<100
+  severity: warning
+  description: ICMP packets loss detected.
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'HP Enterprise Switch: High ICMP ping response time'
+  expression: avg(/HP Enterprise Switch by SNMP/icmppingsec,5m)>0.15
+  severity: warning
+  description: Average ICMP response time is too high.
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'HP Enterprise Switch: High CPU utilization'
+  expression: min(/HP Enterprise Switch by SNMP/system.cpu.util[hpSwitchCpuStat.0],5m)>90
+  severity: warning
+  description: The CPU utilization is too high. The system might be slow to respond.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'HP Enterprise Switch: Firmware has changed'
+  expression: last(/HP Enterprise Switch by SNMP/system.hw.firmware,#1)<>last(/HP
+    Enterprise Switch by SNMP/system.hw.firmware,#2) and length(last(/HP Enterprise
+    Switch by SNMP/system.hw.firmware))>0
+  severity: information
+  description: Firmware version has changed. Acknowledge to close the problem manually.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'HP Enterprise Switch: Device has been replaced'
+  expression: last(/HP Enterprise Switch by SNMP/system.hw.serialnumber,#1)<>last(/HP
+    Enterprise Switch by SNMP/system.hw.serialnumber,#2) and length(last(/HP Enterprise
+    Switch by SNMP/system.hw.serialnumber))>0
+  severity: information
+  description: The device serial number has changed. Acknowledge to close the problem
+    manually.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'HP Enterprise Switch: Host has been restarted'
+  expression: (last(/HP Enterprise Switch by SNMP/system.hw.uptime[hrSystemUptime.0])>0
+    and last(/HP Enterprise Switch by SNMP/system.hw.uptime[hrSystemUptime.0])<10m)
+    or (last(/HP Enterprise Switch by SNMP/system.hw.uptime[hrSystemUptime.0])=0 and
+    last(/HP Enterprise Switch by SNMP/system.net.uptime[sysUpTime.0])<10m)
+  severity: warning
+  description: Uptime is less than 10 minutes.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'HP Enterprise Switch: System name has changed'
+  expression: last(/HP Enterprise Switch by SNMP/system.name,#1)<>last(/HP Enterprise
+    Switch by SNMP/system.name,#2) and length(last(/HP Enterprise Switch by SNMP/system.name))>0
+  severity: information
+  description: The name of the system has changed. Acknowledge to close the problem
+    manually.
+  tags:
+  - tag: scope
+    value: notice
+  - tag: scope
+    value: security
+- name: 'HP Enterprise Switch: No SNMP data collection'
+  expression: max(/HP Enterprise Switch by SNMP/zabbix[host,snmp,available],5m)=0
+  severity: warning
+  description: SNMP is not available for polling. Please check device connectivity
+    and SNMP settings.
+  tags:
+  - tag: scope
+    value: availability
+discovery_rules:
+- name: Entity Discovery
+  key: entity.discovery
+  interval: 1h
+  filter:
+  - macro: '{#ENT_CLASS}'
+    value: '3'
+  item_prototypes:
+  - name: '{#ENT_NAME}: Hardware model name'
+    key: system.hw.model[entPhysicalDescr.{#SNMPINDEX}]
+    interval: 1h
+    value_type: char
+  - name: '{#ENT_NAME}: Hardware version(revision)'
+    key: system.hw.version[entPhysicalHardwareRev.{#SNMPINDEX}]
+    interval: 1h
+    value_type: char
+- name: FAN Discovery
+  key: fan.discovery
+  interval: 1h
+  filter:
+  - macro: '{#ENT_CLASS}'
+    value: .+8.3.2$
+  - macro: '{#ENT_STATUS}'
+    value: (1|2|3|4)
+  item_prototypes:
+  - name: '{#ENT_DESCR}: Fan status'
+    key: sensor.fan.status[hpicfSensorStatus.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'HP Enterprise Switch: {#ENT_DESCR}: Fan is in critical state'
+    expression: count(/HP Enterprise Switch by SNMP/sensor.fan.status[hpicfSensorStatus.{#SNMPINDEX}],#1,"eq","2")=1
+    severity: average
+  - name: 'HP Enterprise Switch: {#ENT_DESCR}: Fan is in warning state'
+    expression: count(/HP Enterprise Switch by SNMP/sensor.fan.status[hpicfSensorStatus.{#SNMPINDEX}],#1,"eq","3")=1
+    severity: warning
+- name: Memory Discovery
+  key: memory.discovery
+  interval: 1h
+  item_prototypes:
+  - name: '#{#SNMPVALUE}: Available memory'
+    key: vm.memory.available[hpLocalMemFreeBytes.{#SNMPINDEX}]
+    interval: 1m
+    value_type: unsigned
+    units: B
+  - name: '#{#SNMPVALUE}: Total memory'
+    key: vm.memory.total[hpLocalMemTotalBytes.{#SNMPINDEX}]
+    interval: 1m
+    value_type: unsigned
+    units: B
+  - name: '#{#SNMPVALUE}: Used memory'
+    key: vm.memory.used[hpLocalMemAllocBytes.{#SNMPINDEX}]
+    interval: 1m
+    value_type: unsigned
+    units: B
+  - name: '#{#SNMPVALUE}: Memory utilization'
+    key: vm.memory.util[snmp.{#SNMPINDEX}]
+    interval: 1m
+    type: calculated
+    params: last(//vm.memory.used[hpLocalMemAllocBytes.{#SNMPINDEX}])/last(//vm.memory.total[hpLocalMemTotalBytes.{#SNMPINDEX}])*100
+    units: '%'
+  trigger_prototypes:
+  - name: 'HP Enterprise Switch: #{#SNMPVALUE}: High memory utilization'
+    expression: min(/HP Enterprise Switch by SNMP/vm.memory.util[snmp.{#SNMPINDEX}],5m)>90
+    severity: average
+- name: Network interfaces discovery
+  key: net.if.discovery
+  interval: 1h
+  filter:
+  - macro: '{#IFADMINSTATUS}'
+    value: '{$NET.IF.IFADMINSTATUS.MATCHES}'
+  - macro: '{#IFADMINSTATUS}'
+    value: '{$NET.IF.IFADMINSTATUS.NOT_MATCHES}'
+  - macro: '{#IFALIAS}'
+    value: '{$NET.IF.IFALIAS.MATCHES}'
+  - macro: '{#IFALIAS}'
+    value: '{$NET.IF.IFALIAS.NOT_MATCHES}'
+  - macro: '{#IFDESCR}'
+    value: '{$NET.IF.IFDESCR.MATCHES}'
+  - macro: '{#IFDESCR}'
+    value: '{$NET.IF.IFDESCR.NOT_MATCHES}'
+  - macro: '{#IFNAME}'
+    value: '{$NET.IF.IFNAME.MATCHES}'
+  - macro: '{#IFNAME}'
+    value: '{$NET.IF.IFNAME.NOT_MATCHES}'
+  - macro: '{#IFOPERSTATUS}'
+    value: '{$NET.IF.IFOPERSTATUS.MATCHES}'
+  - macro: '{#IFOPERSTATUS}'
+    value: '{$NET.IF.IFOPERSTATUS.NOT_MATCHES}'
+  - macro: '{#IFTYPE}'
+    value: '{$NET.IF.IFTYPE.MATCHES}'
+  - macro: '{#IFTYPE}'
+    value: '{$NET.IF.IFTYPE.NOT_MATCHES}'
+  item_prototypes:
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Inbound packets discarded'
+    key: net.if.in.discards[ifInDiscards.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Inbound packets with errors'
+    key: net.if.in.errors[ifInErrors.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Bits received'
+    key: net.if.in[ifHCInOctets.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+    units: bps
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Outbound packets discarded'
+    key: net.if.out.discards[ifOutDiscards.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Outbound packets with errors'
+    key: net.if.out.errors[ifOutErrors.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Bits sent'
+    key: net.if.out[ifHCOutOctets.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+    units: bps
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Speed'
+    key: net.if.speed[ifHighSpeed.{#SNMPINDEX}]
+    interval: 5m
+    value_type: unsigned
+    units: bps
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Operational status'
+    key: net.if.status[ifOperStatus.{#SNMPINDEX}]
+    interval: 1m
+    value_type: unsigned
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Interface type'
+    key: net.if.type[ifType.{#SNMPINDEX}]
+    interval: 1h
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'HP Enterprise Switch: Interface {#IFNAME}({#IFALIAS}): High error rate'
+    expression: "min(/HP Enterprise Switch by SNMP/net.if.in.errors[ifInErrors.{#SNMPINDEX}],5m)>2\r\
+      \nor min(/HP Enterprise Switch by SNMP/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],5m)>2"
+    severity: warning
+    recovery_expression: "max(/HP Enterprise Switch by SNMP/net.if.in.errors[ifInErrors.{#SNMPINDEX}],5m)<2*0.8\r\
+      \nand max(/HP Enterprise Switch by SNMP/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],5m)<2*0.8"
+    allow_manual_close: true
+  - name: 'HP Enterprise Switch: Interface {#IFNAME}({#IFALIAS}): High bandwidth usage'
+    expression: "(avg(/HP Enterprise Switch by SNMP/net.if.in[ifHCInOctets.{#SNMPINDEX}],15m)>(90/100)*last(/HP\
+      \ Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}]) or\r\navg(/HP\
+      \ Enterprise Switch by SNMP/net.if.out[ifHCOutOctets.{#SNMPINDEX}],15m)>(90/100)*last(/HP\
+      \ Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])) and\r\n\
+      last(/HP Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])>0"
+    severity: warning
+    recovery_expression: "avg(/HP Enterprise Switch by SNMP/net.if.in[ifHCInOctets.{#SNMPINDEX}],15m)<((90-3)/100)*last(/HP\
+      \ Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}]) and\r\n\
+      avg(/HP Enterprise Switch by SNMP/net.if.out[ifHCOutOctets.{#SNMPINDEX}],15m)<((90-3)/100)*last(/HP\
+      \ Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])"
+    allow_manual_close: true
+  - name: 'HP Enterprise Switch: Interface {#IFNAME}({#IFALIAS}): Ethernet has changed
+      to lower speed than it was before'
+    expression: "change(/HP Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])<0\
+      \ and last(/HP Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])>0\r\
+      \nand (\r\nlast(/HP Enterprise Switch by SNMP/net.if.type[ifType.{#SNMPINDEX}])=6\
+      \ or\r\nlast(/HP Enterprise Switch by SNMP/net.if.type[ifType.{#SNMPINDEX}])=7\
+      \ or\r\nlast(/HP Enterprise Switch by SNMP/net.if.type[ifType.{#SNMPINDEX}])=11\
+      \ or\r\nlast(/HP Enterprise Switch by SNMP/net.if.type[ifType.{#SNMPINDEX}])=62\
+      \ or\r\nlast(/HP Enterprise Switch by SNMP/net.if.type[ifType.{#SNMPINDEX}])=69\
+      \ or\r\nlast(/HP Enterprise Switch by SNMP/net.if.type[ifType.{#SNMPINDEX}])=117\r\
+      \n)\r\nand\r\n(last(/HP Enterprise Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2)"
+    severity: information
+    recovery_expression: "(change(/HP Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])>0\
+      \ and last(/HP Enterprise Switch by SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}],#2)>0)\
+      \ or\r\n(last(/HP Enterprise Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2)"
+    allow_manual_close: true
+  - name: 'HP Enterprise Switch: Interface {#IFNAME}({#IFALIAS}): Link down'
+    expression: 1=1 and last(/HP Enterprise Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2
+      and (last(/HP Enterprise Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#1)<>last(/HP
+      Enterprise Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#2))
+    severity: average
+    recovery_expression: last(/HP Enterprise Switch by SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2
+      or 1=0
+    allow_manual_close: true
+- name: EtherLike-MIB Discovery
+  key: net.if.duplex.discovery
+  interval: 1h
+  filter:
+  - macro: '{#IFOPERSTATUS}'
+    value: '1'
+  - macro: '{#SNMPVALUE}'
+    value: (2|3)
+  item_prototypes:
+  - name: 'Interface {#IFNAME}({#IFALIAS}): Duplex status'
+    key: net.if.duplex[dot3StatsDuplexStatus.{#SNMPINDEX}]
+    interval: 1m
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'HP Enterprise Switch: Interface {#IFNAME}({#IFALIAS}): In half-duplex mode'
+    expression: last(/HP Enterprise Switch by SNMP/net.if.duplex[dot3StatsDuplexStatus.{#SNMPINDEX}])=2
+    severity: warning
+    allow_manual_close: true
+- name: PSU Discovery
+  key: psu.discovery
+  interval: 1h
+  filter:
+  - macro: '{#ENT_CLASS}'
+    value: .+8.3.1$
+  - macro: '{#ENT_STATUS}'
+    value: (1|2|3|4)
+  item_prototypes:
+  - name: '{#ENT_DESCR}: Power supply status'
+    key: sensor.psu.status[hpicfSensorStatus.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'HP Enterprise Switch: {#ENT_DESCR}: Power supply is in critical state'
+    expression: count(/HP Enterprise Switch by SNMP/sensor.psu.status[hpicfSensorStatus.{#SNMPINDEX}],#1,"eq","2")=1
+    severity: average
+  - name: 'HP Enterprise Switch: {#ENT_DESCR}: Power supply is in warning state'
+    expression: count(/HP Enterprise Switch by SNMP/sensor.psu.status[hpicfSensorStatus.{#SNMPINDEX}],#1,"eq","3")=1
+    severity: warning
+- name: Temperature Discovery
+  key: temp.precision0.discovery
+  interval: 1h
+  filter:
+  - macro: '{#SENSOR_PRECISION}'
+    value: '0'
+  - macro: '{#SENSOR_TYPE}'
+    value: '8'
+  item_prototypes:
+  - name: '{#SENSOR_INFO}: Temperature'
+    key: sensor.temp.value[entPhySensorValue.{#SNMPINDEX}]
+    interval: 3m
+    units: °C
+  trigger_prototypes:
+  - name: 'HP Enterprise Switch: {#SENSOR_INFO}: Temperature is above critical threshold'
+    expression: avg(/HP Enterprise Switch by SNMP/sensor.temp.value[entPhySensorValue.{#SNMPINDEX}],5m)>60
+    severity: high
+    recovery_expression: max(/HP Enterprise Switch by SNMP/sensor.temp.value[entPhySensorValue.{#SNMPINDEX}],5m)<60-3
+  - name: 'HP Enterprise Switch: {#SENSOR_INFO}: Temperature is above warning threshold'
+    expression: avg(/HP Enterprise Switch by SNMP/sensor.temp.value[entPhySensorValue.{#SNMPINDEX}],5m)>50
+    severity: warning
+    recovery_expression: max(/HP Enterprise Switch by SNMP/sensor.temp.value[entPhySensorValue.{#SNMPINDEX}],5m)<50-3
+  - name: 'HP Enterprise Switch: {#SENSOR_INFO}: Temperature is too low'
+    expression: avg(/HP Enterprise Switch by SNMP/sensor.temp.value[entPhySensorValue.{#SNMPINDEX}],5m)<5
+    severity: average
+    recovery_expression: min(/HP Enterprise Switch by SNMP/sensor.temp.value[entPhySensorValue.{#SNMPINDEX}],5m)>5+3
+- name: Temp Status Discovery
+  key: temp.status.discovery
+  interval: 1h
+  filter:
+  - macro: '{#ENT_CLASS}'
+    value: .+8.3.3$
+  - macro: '{#ENT_STATUS}'
+    value: (1|2|3|4)
+  item_prototypes:
+  - name: '{#ENT_DESCR}: Temperature status'
+    key: sensor.temp.status[hpicfSensorStatus.{#SNMPINDEX}]
+    interval: 3m
+    value_type: unsigned

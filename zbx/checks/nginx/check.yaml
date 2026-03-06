@@ -1,0 +1,141 @@
+# nginx check
+#
+# Monitors Nginx active connections, request rate, and worker state.
+# Requires stub_status to be enabled in nginx.conf:
+#
+#   location /nginx_status {
+#       stub_status;
+#       allow 127.0.0.1;
+#       deny all;
+#   }
+#
+# Deploy the script:
+#   sudo cp scripts/check_nginx.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_nginx.py
+#   pip install requests
+#
+# Add to Zabbix agent config:
+#   UserParameter=nginx.stat[*],/usr/local/zbx/scripts/check_nginx.py $1
+#
+# Deploy:
+#   zbx apply configs/checks/nginx/
+
+template: nginx
+name: "Nginx"
+description: "Nginx web server: connections, request rate, worker states"
+groups:
+  - Templates
+  - Templates/Applications
+
+items:
+  - name: Nginx ping
+    key: "nginx.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 if Nginx is responding on /nginx_status, 0 otherwise"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Active connections
+    key: "nginx.stat[active]"
+    interval: 30s
+    value_type: unsigned
+    description: "Total active connections (reading + writing + waiting)"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Total accepted connections
+    key: "nginx.stat[accepts]"
+    interval: 60s
+    value_type: unsigned
+    description: "Cumulative accepted connections since start"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Total handled connections
+    key: "nginx.stat[handled]"
+    interval: 60s
+    value_type: unsigned
+    description: "Cumulative handled connections (accepts - handled = dropped)"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Total requests
+    key: "nginx.stat[requests]"
+    interval: 60s
+    value_type: unsigned
+    description: "Cumulative HTTP requests processed"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Connections in reading state
+    key: "nginx.stat[reading]"
+    interval: 30s
+    value_type: unsigned
+    description: "Connections currently reading request headers"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Connections in writing state
+    key: "nginx.stat[writing]"
+    interval: 30s
+    value_type: unsigned
+    description: "Connections currently writing responses"
+    tags:
+      - tag: component
+        value: nginx
+
+  - name: Connections in waiting state
+    key: "nginx.stat[waiting]"
+    interval: 30s
+    value_type: unsigned
+    description: "Keep-alive connections waiting for next request"
+    tags:
+      - tag: component
+        value: nginx
+
+triggers:
+  - name: Nginx is unreachable
+    expression: "last(/nginx/nginx.stat[ping]) = 0"
+    severity: high
+    description: "Nginx is not responding on /nginx_status. Service may be down."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: High number of active connections (> 500)
+    expression: "avg(/nginx/nginx.stat[active],5m) > 500"
+    severity: average
+    description: "Active connections are high. Check for traffic spikes or slow backends."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: Dropped connections detected
+    expression: "change(/nginx/nginx.stat[accepts]) - change(/nginx/nginx.stat[handled]) > 0"
+    severity: warning
+    description: "Nginx is dropping connections (accepts > handled). Check worker_connections."
+    tags:
+      - tag: scope
+        value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_nginx.py
+      dest: /usr/local/zbx/scripts/check_nginx.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-nginx
+      parameters:
+        - key: "nginx.stat[*]"
+          command: "/usr/local/zbx/scripts/check_nginx.py $1"
+  test_keys:
+    - "nginx.stat[ping]"

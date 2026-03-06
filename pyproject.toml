@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zbxctl"
-version = "0.4.0"
+version = "0.5.0"
 description = "Zabbix configuration as code — manage monitoring via Git"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -61,7 +61,7 @@ where = ["."]
 include = ["zbx*"]
 
 [tool.setuptools.package-data]
-zbx = ["py.typed"]
+zbx = ["py.typed", "checks/**/*.yaml", "checks/**/*.py", "checks/**/*.sh"]
 
 [tool.ruff]
 line-length = 100

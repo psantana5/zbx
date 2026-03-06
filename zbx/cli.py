@@ -27,6 +27,7 @@ from zbx.commands.plan import plan_cmd
 from zbx.commands.scaffold import scaffold_cmd
 from zbx.commands.schema import schema_cmd
 from zbx.commands.status import status_cmd
+from zbx.commands.init import init_cmd
 from zbx.commands.validate import validate_cmd
 
 console = Console(stderr=True)
@@ -47,6 +48,7 @@ app = typer.Typer(
 # Register commands
 # ---------------------------------------------------------------------------
 
+app.command("init",     help="Interactive setup wizard — create .env and project structure.")(init_cmd)
 app.command("apply", help="Create or update Zabbix resources from YAML config.")(apply_cmd)
 app.command("plan", help="Show what changes would be applied (dry run).")(plan_cmd)
 app.command("diff", help="Show differences between local config and Zabbix.")(diff_cmd)

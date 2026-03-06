@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.0] — 2026-03-06
+
+### Added
+- `zbx init` — interactive setup wizard: prompts for URL/user/password, tests connection, writes `.env`, creates `configs/` structure, updates `.gitignore`. Zero-to-running in one command.
+- `zbx check install <name>` — now **copies** the bundled check from the package into your project (`configs/checks/<name>/`) before applying. Works after `pip install zbxctl` with no repo clone needed.
+- `zbx check list` — shows **Installed** column so you can see which checks are already in your project.
+- Bundled checks now shipped **inside the pip package** (`zbx/checks/`) — all 14 checks available immediately after `pip install zbxctl`, no repo clone required.
+
+### Changed
+- `zbx check install` no longer requires a `<host>` argument; copy + apply is the default flow. Agent deploy remains available via `zbx agent deploy`.
+- `zbx check list` / `check info` now read from package data (always available) rather than requiring a local `configs/checks/` directory.
+
+### Community
+- Added `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`
+- Added GitHub issue templates: bug report, feature request, new check, question
+- Added PR template with checklist
+- Added `docker-compose.yml` for local Zabbix dev environment
+- Added terminal demo GIF to README
+- Added PyPI/Python/CI/License badges to README
+- Set GitHub repo description and 10 discovery topics
+
+
+
 ## [0.4.0] — 2026-03-05
 
 ### Added

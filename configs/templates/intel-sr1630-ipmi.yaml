@@ -1,0 +1,274 @@
+template: Intel SR1630 IPMI
+description: "Template for monitoring Intel SR1630 server system.\r\n\r\nGenerated\
+  \ by official Zabbix template tool \"Templator\""
+groups:
+- Templates
+items:
+- name: Baseboard Temp
+  key: baseboard_temp
+  interval: 1m
+  type: ipmi_agent
+  units: C
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: temperature
+- name: BB +1.05V PCH
+  key: bb_1.05v_pch
+  interval: 1m
+  type: ipmi_agent
+  units: V
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: BB +1.1V P1 Vccp
+  key: bb_1.1v_p1_vccp
+  interval: 1m
+  type: ipmi_agent
+  units: V
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: BB +1.5V P1 DDR3
+  key: bb_1.5v_p1_ddr3
+  interval: 1m
+  type: ipmi_agent
+  units: V
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: BB +3.3V
+  key: bb_3.3v
+  interval: 1m
+  type: ipmi_agent
+  units: V
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: BB +3.3V STBY
+  key: bb_3.3v_stby
+  interval: 1m
+  type: ipmi_agent
+  units: V
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: BB +5.0V
+  key: bb_5.0v
+  interval: 1m
+  type: ipmi_agent
+  units: V
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: Front Panel Temp
+  key: front_panel_temp
+  interval: 1m
+  type: ipmi_agent
+  units: C
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: temperature
+- name: Power
+  key: power
+  interval: 1m
+  type: ipmi_agent
+  value_type: unsigned
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+  - tag: component
+    value: voltage
+- name: System Fan 2
+  key: system_fan_2
+  interval: 1m
+  type: ipmi_agent
+  units: RPM
+  history: 31d
+  tags:
+  - tag: component
+    value: fan
+  - tag: component
+    value: system
+- name: System Fan 3
+  key: system_fan_3
+  interval: 1m
+  type: ipmi_agent
+  units: RPM
+  history: 31d
+  tags:
+  - tag: component
+    value: fan
+  - tag: component
+    value: system
+triggers:
+- name: 'Intel SR1630: Baseboard Temp Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/baseboard_temp)<5 or last(/Intel SR1630 IPMI/baseboard_temp)>90
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: Baseboard Temp Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/baseboard_temp)<10 or last(/Intel SR1630 IPMI/baseboard_temp)>83
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: BB +1.05V PCH Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_1.05v_pch)<0.953 or last(/Intel SR1630 IPMI/bb_1.05v_pch)>1.149
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +1.05V PCH Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_1.05v_pch)<0.985 or last(/Intel SR1630 IPMI/bb_1.05v_pch)>1.117
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +1.1V P1 Vccp Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_1.1v_p1_vccp)<0.683 or last(/Intel SR1630
+    IPMI/bb_1.1v_p1_vccp)>1.543
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +1.1V P1 Vccp Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_1.1v_p1_vccp)<0.708 or last(/Intel SR1630
+    IPMI/bb_1.1v_p1_vccp)>1.501
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +1.5V P1 DDR3 Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_1.5v_p1_ddr3)<1.362 or last(/Intel SR1630
+    IPMI/bb_1.5v_p1_ddr3)>1.635
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +1.5V P1 DDR3 Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_1.5v_p1_ddr3)<1.401 or last(/Intel SR1630
+    IPMI/bb_1.5v_p1_ddr3)>1.589
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +3.3V Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_3.3v)<2.982 or last(/Intel SR1630 IPMI/bb_3.3v)>3.625
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +3.3V Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_3.3v)<3.067 or last(/Intel SR1630 IPMI/bb_3.3v)>3.525
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +3.3V STBY Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_3.3v_stby)<2.982 or last(/Intel SR1630 IPMI/bb_3.3v_stby)>3.625
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +3.3V STBY Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_3.3v_stby)<3.067 or last(/Intel SR1630 IPMI/bb_3.3v_stby)>3.525
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +5.0V Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_5.0v)<4.471 or last(/Intel SR1630 IPMI/bb_5.0v)>5.538
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: BB +5.0V Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/bb_5.0v)<4.630 or last(/Intel SR1630 IPMI/bb_5.0v)>5.380
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: Front Panel Temp Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/front_panel_temp)<0 or last(/Intel SR1630 IPMI/front_panel_temp)>48
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: Front Panel Temp Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/front_panel_temp)<5 or last(/Intel SR1630 IPMI/front_panel_temp)>44
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: Power'
+  expression: last(/Intel SR1630 IPMI/power)=0
+  severity: warning
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Intel SR1630: System Fan 2 Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/system_fan_2)<324
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: System Fan 2 Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/system_fan_2)<378
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: System Fan 3 Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/system_fan_3)<324
+  severity: disaster
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance
+- name: 'Intel SR1630: System Fan 3 Non-Critical [{ITEM.VALUE}]'
+  expression: last(/Intel SR1630 IPMI/system_fan_3)<378
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+  - tag: scope
+    value: performance

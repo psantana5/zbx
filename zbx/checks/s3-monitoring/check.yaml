@@ -1,0 +1,126 @@
+# S3 / MinIO User Storage Monitoring
+#
+# This check discovers S3 users via the Zabbix agent and tracks per-user
+# storage quota, used space and available space.
+#
+# ── Quick start ───────────────────────────────────────────────────────────
+#
+#   1. Apply the template to Zabbix:
+#        zbx apply configs/checks/s3-monitoring/
+#
+#   2. Deploy the script to a host:
+#        zbx agent deploy <hostname> --from-check configs/checks/s3-monitoring/
+#
+#   3. Link the template to the host and set macros:
+#        zbx apply configs/hosts/<hostname>.yaml
+#
+#   4. Verify the agent key works:
+#        zbx agent test <hostname> --from-check configs/checks/s3-monitoring/
+#
+# ── Host macros required on the linked host ───────────────────────────────
+#   {$S3_USER_PASSWORD}  — S3 user password
+#   {$S3_USER_GROUP}     — S3 user group
+
+# ── Template definition ───────────────────────────────────────────────────
+
+template: monitoring-s3-users
+name: "Monitoring S3 Users"
+description: "Per-user S3 storage monitoring via Low-Level Discovery. Tracks used space, available space and percentage used for every S3 user discovered by the agent script."
+groups:
+  - Templates
+  - Templates/Storage
+
+discovery_rules:
+  - name: S3 Monitoring
+    key: s3.user.discover
+    type: zabbix_agent
+    interval: 12h
+    description: "Discovers all S3 users via the getS3Storage.py script"
+
+    item_prototypes:
+      # Master item — fetches raw JSON for the discovered S3 user.
+      # All dependent items below parse this single API call.
+      - name: "S3 Storage data for [{#S3USER}]"
+        key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        type: zabbix_agent
+        value_type: text
+        interval: 12h
+        description: "Raw JSON payload from getS3Storage.py for user {#S3USER}"
+
+      # Dependent items — parse fields out of the master JSON payload.
+      - name: "S3 Percentage used for [{#S3USER}]"
+        key: "s3.user.percentageused[{#S3USER}]"
+        type: dependent
+        value_type: float
+        master_item_key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        description: "Storage usage percentage for S3 user {#S3USER}"
+        units: "%"
+        preprocessing:
+          - type: jsonpath
+            params: "$.percentageused"
+
+      - name: "S3 Total available size for [{#S3USER}]"
+        key: "s3.user.totalavailablesize[{#S3USER}]"
+        type: dependent
+        value_type: float
+        master_item_key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        description: "Total storage quota available for S3 user {#S3USER}"
+        units: B
+        preprocessing:
+          - type: jsonpath
+            params: "$.totalavailablesize"
+
+      - name: "S3 Used space for [{#S3USER}]"
+        key: "s3.user.usedspace[{#S3USER}]"
+        type: dependent
+        value_type: float
+        master_item_key: "s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}]"
+        description: "Storage currently consumed by S3 user {#S3USER}"
+        units: B
+        preprocessing:
+          - type: jsonpath
+            params: "$.usedspace"
+
+    trigger_prototypes:
+      - name: "High S3 Storage Limit for [{#S3USER}]"
+        expression: "last(/monitoring-s3-users/s3.user.percentageused[{#S3USER}])>=95"
+        recovery_expression: "last(/monitoring-s3-users/s3.user.percentageused[{#S3USER}])<90"
+        severity: high
+        allow_manual_close: true
+        description: >
+          S3 storage usage for {#S3USER} is at or above 95%.
+          Investigate and clean up or expand the quota before it hits 100%.
+
+      - name: "S3 user {#S3USER} no data (24h)"
+        expression: "count(/monitoring-s3-users/s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}],#2)=0"
+        recovery_expression: "count(/monitoring-s3-users/s3.user.metrics[{#S3USER},{$S3_USER_PASSWORD},{$S3_USER_GROUP}],#2)>0"
+        severity: warning
+        allow_manual_close: true
+        description: >
+          No metrics received for S3 user {#S3USER} in 24 hours.
+          Check the getS3Storage.py script and Zabbix agent connectivity.
+
+# ── Agent deployment ──────────────────────────────────────────────────────
+# Consumed by: zbx agent deploy <host> --from-check configs/checks/s3-monitoring/
+# The SSH/sudo settings come from the host entry in inventory.yaml;
+# only scripts and userparameters need to be defined here.
+
+agent:
+  scripts:
+    - source: configs/checks/s3-monitoring/getS3Storage.py
+      dest: /usr/local/scripts/zabbix/getS3Storage.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+
+  userparameters:
+    - name: s3monitor
+      path: /etc/zabbix/zabbix_agentd.d/userparameters_s3monitor.conf
+      parameters:
+        - key: s3.user.discover
+          command: /usr/local/scripts/zabbix/getS3Storage.py
+        - key: "s3.user.metrics[*]"
+          command: /usr/local/scripts/zabbix/getS3Storage.py $1 $2 $3
+
+  test_keys:
+    - s3.user.discover

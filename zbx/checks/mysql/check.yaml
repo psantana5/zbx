@@ -1,0 +1,90 @@
+template: mysql
+name: MySQL
+description: >
+  MySQL database health: connections, query throughput, InnoDB buffer pool,
+  slow queries and uptime. Requires a Zabbix agent UserParameter script.
+groups:
+  - Templates
+  - Templates/Databases
+
+items:
+  - name: MySQL ping
+    key: "mysql.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 = reachable, 0 = down"
+
+  - name: Active connections
+    key: "mysql.stat[connections]"
+    interval: 60s
+    value_type: unsigned
+    units: ""
+
+  - name: Max connections limit
+    key: "mysql.stat[max_connections]"
+    interval: 10m
+    value_type: unsigned
+
+  - name: Threads running
+    key: "mysql.stat[threads_running]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Queries per second (cumulative)
+    key: "mysql.stat[queries_per_sec]"
+    interval: 60s
+    value_type: unsigned
+
+  - name: Slow queries (cumulative)
+    key: "mysql.stat[slow_queries]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Uptime
+    key: "mysql.stat[uptime]"
+    interval: 5m
+    value_type: unsigned
+    units: "s"
+
+  - name: InnoDB buffer pool hit ratio
+    key: "mysql.stat[innodb_buffer_pool_hit]"
+    interval: 5m
+    value_type: float
+    units: "%"
+
+triggers:
+  - name: MySQL is unreachable
+    expression: "last(/mysql/mysql.stat[ping])=0"
+    severity: high
+    description: "MySQL did not respond to the UserParameter ping check."
+
+  - name: High number of active connections (> 80% of max)
+    expression: >
+      last(/mysql/mysql.stat[connections]) /
+      last(/mysql/mysql.stat[max_connections]) * 100 > 80
+    severity: average
+
+  - name: Slow queries increasing
+    expression: "change(/mysql/mysql.stat[slow_queries]) > 10"
+    severity: warning
+    description: "More than 10 new slow queries recorded in the last check interval."
+
+  - name: Low InnoDB buffer pool hit ratio (< 90%)
+    expression: "last(/mysql/mysql.stat[innodb_buffer_pool_hit]) < 90"
+    severity: warning
+    description: "InnoDB buffer pool hit rate below 90% — consider increasing innodb_buffer_pool_size."
+
+agent:
+  scripts:
+    - source: scripts/check_mysql.py
+      dest: /usr/local/zbx/scripts/check_mysql.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-mysql
+      parameters:
+        - key: "mysql.stat[*]"
+          command: "/usr/local/zbx/scripts/check_mysql.py $1"
+  test_keys:
+    - "mysql.stat[ping]"

@@ -1,0 +1,1248 @@
+template: Oracle by Zabbix agent 2
+description: "Get metrics from Oracle Database using Zabbix agent 2.\r\n\r\nGenerated\
+  \ by official Zabbix template tool \"Templator\""
+groups:
+- Templates
+items:
+- name: Active parallel sessions
+  key: oracle.active_parallel_sessions
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  description: The number of active parallel sessions.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Active serial sessions
+  key: oracle.active_serial_sessions
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  description: The number of active serial sessions.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Average active sessions
+  key: oracle.active_sessions
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  description: The average number of active sessions at a point in time that are either
+    working or waiting.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Archiver state
+  key: oracle.archiver_state
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: The status of automatic archiving.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Buffer cache hit ratio
+  key: oracle.buffer_cache_hit_ratio
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: The ratio of buffer cache hits ((LogRead - PhyRead)/LogRead).
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Global cache blocks corrupted
+  key: oracle.cache_blocks_corrupt
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: Rps
+  description: The number of blocks that encountered corruption or checksum failure
+    during the interconnect.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Global cache blocks lost
+  key: oracle.cache_blocks_lost
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: Rps
+  description: The number of lost global cache blocks.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Cursor cache hit ratio
+  key: oracle.cursor_cache_hit_ratio
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: The ratio of cursor cache hits (CursorCacheHit/SoftParse).
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Database CPU time ratio
+  key: oracle.database_cpu_time_ratio
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: The ratio calculated by dividing the total CPU (used by the database)
+    by the Oracle time model statistic DB time.
+  history: 31d
+  tags:
+  - tag: component
+    value: cpu
+- name: Database wait time ratio
+  key: oracle.database_wait_time_ratio
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: Wait time - the time that the server process spends waiting for available
+    shared resources to be released by other server processes such as latches, locks,
+    data buffers, etc.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Datafiles count
+  key: oracle.datafiles.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: unsigned
+  description: The current number of datafiles.
+  history: 31d
+  tags:
+  - tag: component
+    value: datafiles
+- name: Datafiles limit
+  key: oracle.db_files_limit
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.params["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: The maximum allowable number of datafiles.
+  history: 31d
+  tags:
+  - tag: component
+    value: datafiles
+- name: Disk sort per second
+  key: oracle.disk_sorts
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: The number of sorts going to disk per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Enqueue timeouts per second
+  key: oracle.enqueue_timeouts_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: Enqueue timeouts per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Get FRA stats
+  key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: text
+  description: Get FRA statistics.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: FRA, Number of files
+  key: oracle.fra_number_of_files
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: The number of files in the FRA.
+  history: 31d
+  tags:
+  - tag: component
+    value: fra
+- name: FRA, Number of restore points
+  key: oracle.fra_restore_point
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  description: Number of restore points in the FRA.
+  history: 31d
+  tags:
+  - tag: component
+    value: fra
+- name: FRA, Space limit
+  key: oracle.fra_space_limit
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The maximum amount of disk space (in bytes) that the database can use
+    for the Fast Recovery Area (FRA).
+  history: 31d
+  tags:
+  - tag: component
+    value: fra
+- name: FRA, Space reclaimable
+  key: oracle.fra_space_reclaimable
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The total amount of disk space (in bytes) that can be created by deleting
+    obsolete, redundant, and other low-priority files from the FRA.
+  history: 31d
+  tags:
+  - tag: component
+    value: fra
+- name: FRA, Used space
+  key: oracle.fra_space_used
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The amount of disk space (in bytes) used by FRA files created in the
+    current and all the previous FRAs.
+  history: 31d
+  tags:
+  - tag: component
+    value: fra
+- name: FRA, Usable space in %
+  key: oracle.fra_usable_pct
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.fra.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: Percentage of space usable in the FRA.
+  history: 31d
+  tags:
+  - tag: component
+    value: fra
+- name: GC CR block received per second
+  key: oracle.gc_cr_block_received_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: The global cache (GC) and the consistent read (CR) block received per
+    second.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Get instance state
+  key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: text
+  description: Gets the state of the current instance.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: Instance role
+  key: oracle.instance.role
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: Indicates whether the instance is an active instance or an inactive
+    secondary instance.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Instance hostname
+  key: oracle.instance_hostname
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: char
+  description: The name of the host machine.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: Instance name
+  key: oracle.instance_name
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: char
+  description: The name of the instance.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: Instance status
+  key: oracle.instance_status
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: The status of the instance.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Library cache hit ratio
+  key: oracle.library_cache_hit_ratio
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: The ratio of library cache hits (Hits/Pins).
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Logons per second
+  key: oracle.logons_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: The number of logon attempts.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Long table scans per second
+  key: oracle.long_table_scans_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: The number of long table scans per second. A table is considered long
+    if it is not cached and if its high water mark is greater than five blocks.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Memory sorts ratio
+  key: oracle.memory_sorts_ratio
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: The percentage of sorts (from `ORDER BY` clauses or index building)
+    that are done to disk vs. in-memory.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Get PGA stats
+  key: oracle.pga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: text
+  description: Get PGA statistics.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: PGA, Global memory bound
+  key: oracle.pga_global_bound
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.pga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The maximum size of a work area executed in automatic mode.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: pga
+- name: PGA, Aggregate target parameter
+  key: oracle.pga_target
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.pga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The current value of the `PGA_AGGREGATE_TARGET` initialization parameter.
+    If this parameter is not set, then its value is "0" and automatic management of
+    the PGA memory is disabled.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: pga
+- name: Physical reads bytes per second
+  key: oracle.physical_read_bytes_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Bps
+  description: Read bytes per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: disk
+- name: Physical reads per second
+  key: oracle.physical_reads_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: Reads per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: disk
+- name: Physical writes bytes per second
+  key: oracle.physical_write_bytes_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Bps
+  description: Write bytes per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: disk
+- name: Physical writes per second
+  key: oracle.physical_writes_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: Writes per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: disk
+- name: Ping
+  key: oracle.ping["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 30s
+  value_type: unsigned
+  description: Test the connection to Oracle Database state.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+  - tag: component
+    value: health
+- name: Number of processes
+  key: oracle.proc.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: unsigned
+  description: The current number of user processes.
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+- name: Processes limit
+  key: oracle.processes_limit
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.params["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: The maximum number of user processes.
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+- name: Redo logs available to switch
+  key: oracle.redolog.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: unsigned
+  description: The number of inactive/unused redo logs available for log switching.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Rows per sort
+  key: oracle.rows_per_sort
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  description: The average number of rows per sort for all types of sorts performed.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: SQL service response time
+  key: oracle.service_response_time
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: s
+  description: The Structured Query Language (SQL) service response time expressed
+    in seconds.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Active background sessions
+  key: oracle.session_active_background
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  description: The number of active background sessions.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Active user sessions
+  key: oracle.session_active_user
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  description: The number of active user sessions.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Sessions concurrency
+  key: oracle.session_concurrency_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  units: '%'
+  description: The percentage of concurrency. Concurrency is a database behavior when
+    different transactions request to change the same resource. In the case of modifying
+    data transactions, it sequentially temporarily blocks the right to change the
+    data, and the rest of the transactions wait for access. When the access to a resource
+    is locked for a long time, the concurrency grows (like the transaction queue),
+    often leaving an extremely negative impact on performance. A high contention value
+    does not indicate the root cause of the problem, but is a signal to search for
+    it.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Session count
+  key: oracle.session_count
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  description: The session count.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Inactive user sessions
+  key: oracle.session_inactive_user
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  description: The number of inactive user sessions.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Sessions limit
+  key: oracle.session_limit
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.params["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  description: The user and system sessions.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Sessions lock rate
+  key: oracle.session_lock_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  units: '%'
+  description: The percentage of locked sessions. Locks are mechanisms that prevent
+    destructive interaction between transactions accessing the same resource - either
+    user objects, such as tables and rows or system objects not visible to users,
+    such as shared data structures in memory and data dictionary rows.
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Sessions locked over {$ORACLE.SESSION.LOCK.MAX.TIME}s
+  key: oracle.session_long_time_locked
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  description: The count of the prolongedly locked sessions. (You can change the duration
+    of the maximum session lock in seconds for a query using the `{$ORACLE.SESSION.LOCK.MAX.TIME}`
+    macro. Default = 600 s).
+  history: 31d
+  tags:
+  - tag: component
+    value: sessions
+- name: Get sessions stats
+  key: oracle.sessions.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{$ORACLE.SESSION.LOCK.MAX.TIME}"]
+  interval: 1m
+  value_type: text
+  description: 'Get sessions statistics. {$ORACLE.SESSION.LOCK.MAX.TIME} -- maximum
+    seconds in the current wait condition for counting long time locked sessions.
+    Default: 600 seconds.'
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: Get SGA stats
+  key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: text
+  description: Get SGA statistics.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: SGA, buffer cache
+  key: oracle.sga_buffer_cache
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The size of standard block cache.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+  - tag: component
+    value: sga
+- name: SGA, fixed
+  key: oracle.sga_fixed
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The fixed System Global Area (SGA) is an internal housekeeping area.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: sga
+- name: SGA, java pool
+  key: oracle.sga_java_pool
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The memory is allocated from the Java pool.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: sga
+- name: SGA, large pool
+  key: oracle.sga_large_pool
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The memory is allocated from a large pool.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: sga
+- name: SGA, log buffer
+  key: oracle.sga_log_buffer
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The number of bytes allocated for the redo log buffer.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: sga
+- name: SGA, shared pool
+  key: oracle.sga_shared_pool
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The memory is allocated from a shared pool.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: sga
+- name: Shared pool free %
+  key: oracle.shared_pool_free
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: '%'
+  description: Free memory of a shared pool expressed in %.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+- name: Total sorts per user call
+  key: oracle.sorts_per_user_call
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  description: The total sorts per user call.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Get system metrics
+  key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 0;m0-59
+  value_type: text
+  description: Gets the values of the system metrics.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: Get system parameters
+  key: oracle.sys.params["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  value_type: text
+  description: Get a set of system parameter values.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: Temp space used
+  key: oracle.temp_space_used
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: B
+  description: Used temporary space.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: PGA, Total allocated
+  key: oracle.total_pga_allocated
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.pga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The current amount of the PGA memory allocated by the instance. The
+    Oracle Database attempts to keep this number below the value of the `PGA_AGGREGATE_TARGET`
+    initialization parameter. However, it is possible for the PGA allocated to exceed
+    that value by a small percentage and for a short period of time when the work
+    area workload is increasing very rapidly or when `PGA_AGGREGATE_TARGET` is set
+    to a small value.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: pga
+- name: PGA, Total freeable
+  key: oracle.total_pga_freeable
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.pga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The number of bytes of the PGA memory in all processes that could be
+    freed back to the OS.
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: pga
+- name: PGA, Total inuse
+  key: oracle.total_pga_used
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.pga.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: B
+  description: The amount of Program Global Area (PGA) memory currently consumed by
+    work areas. This number can be used to determine how much memory is consumed by
+    other consumers of the PGA memory (for example, PL/SQL or Java).
+  history: 31d
+  tags:
+  - tag: component
+    value: memory
+  - tag: component
+    value: pga
+- name: Uptime
+  key: oracle.uptime
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.instance.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  value_type: unsigned
+  units: s
+  description: The Oracle instance uptime expressed in seconds.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: User's expire password
+  key: oracle.user.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1m
+  units: days
+  description: The number of days before the Zabbix account password expires.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: User rollbacks per second
+  key: oracle.user_rollbacks_rate
+  interval: '0'
+  type: dependent
+  master_item_key: oracle.sys.metrics["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  units: Rps
+  description: The number of times that users manually issued the `ROLLBACK` statement
+    or an error occurred during the users' transactions.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Version
+  key: oracle.version["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 15m
+  value_type: char
+  description: The Oracle Server version.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+triggers:
+- name: 'Oracle: Too many database files'
+  expression: min(/Oracle by Zabbix agent 2/oracle.datafiles.stats["","","******","ORA"],5m)
+    * 100 / last(/Oracle by Zabbix agent 2/oracle.db_files_limit) > 80
+  severity: warning
+  description: The number of datafiles is higher than `{$ORACLE.DB.FILE.MAX.WARN}`%
+    of the available datafile limit.
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'Oracle: Instance hostname has changed'
+  expression: last(/Oracle by Zabbix agent 2/oracle.instance_hostname,#1)<>last(/Oracle
+    by Zabbix agent 2/oracle.instance_hostname,#2) and length(last(/Oracle by Zabbix
+    agent 2/oracle.instance_hostname))>0
+  severity: information
+  description: An Oracle Database instance hostname has changed. Acknowledge to close
+    the problem manually.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'Oracle: Instance name has changed'
+  expression: last(/Oracle by Zabbix agent 2/oracle.instance_name,#1)<>last(/Oracle
+    by Zabbix agent 2/oracle.instance_name,#2) and length(last(/Oracle by Zabbix agent
+    2/oracle.instance_name))>0
+  severity: information
+  description: An Oracle Database instance name has changed. Acknowledge to close
+    the problem manually.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'Oracle: Total PGA inuse is too high'
+  expression: min(/Oracle by Zabbix agent 2/oracle.total_pga_used,5m) * 100 / last(/Oracle
+    by Zabbix agent 2/oracle.pga_target) > 90
+  severity: warning
+  description: The total PGA in use is more than `{$ORACLE.PGA.USE.MAX.WARN}`% of
+    `PGA_AGGREGATE_TARGET`.
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'Oracle: Connection to database is unavailable'
+  expression: last(/Oracle by Zabbix agent 2/oracle.ping["","","******","ORA"])=0
+  severity: disaster
+  description: Connection to Oracle Database is currently unavailable.
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Oracle: Too many active processes'
+  expression: min(/Oracle by Zabbix agent 2/oracle.proc.stats["","","******","ORA"],5m)
+    * 100 / last(/Oracle by Zabbix agent 2/oracle.processes_limit) > 80
+  severity: warning
+  description: Active processes are using more than `{$ORACLE.PROCESSES.MAX.WARN}`%
+    of the available number of processes.
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'Oracle: Number of REDO logs available for switching is too low'
+  expression: max(/Oracle by Zabbix agent 2/oracle.redolog.info["","","******","ORA"],5m)
+    < 3
+  severity: warning
+  description: The number of inactive/unused redos available for log switching is
+    low (risk of database downtime).
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'Oracle: Too high database concurrency'
+  expression: min(/Oracle by Zabbix agent 2/oracle.session_concurrency_rate,5m) >
+    80
+  severity: warning
+  description: The concurrency rate exceeds `{$ORACLE.CONCURRENCY.MAX.WARN}`%. A high
+    contention value does not indicate the root cause of the problem, but is a signal
+    to review resource consumption (determine the "heaviest" queries in the database,
+    trace sessions, etc.) This will help find the root cause and possible optimization
+    points both in database configuration and the logic of building queries.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'Oracle: Too many active sessions'
+  expression: min(/Oracle by Zabbix agent 2/oracle.session_count,5m) * 100 / last(/Oracle
+    by Zabbix agent 2/oracle.session_limit) > 80
+  severity: warning
+  description: Active sessions are using more than `{$ORACLE.SESSIONS.MAX.WARN}`%
+    of the available sessions.
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'Oracle: Too many locked sessions'
+  expression: min(/Oracle by Zabbix agent 2/oracle.session_lock_rate,5m) > 20
+  severity: warning
+  description: The number of locked sessions exceeds `{$ORACLE.SESSIONS.LOCK.MAX.WARN}`%
+    of the running sessions.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'Oracle: Too many sessions locked'
+  expression: min(/Oracle by Zabbix agent 2/oracle.session_long_time_locked,5m) >
+    3
+  severity: warning
+  description: The number of locked sessions exceeding `{$ORACLE.SESSION.LOCK.MAX.TIME}`
+    seconds is too high. Long-term locks can negatively affect the database performance.
+    Therefore, if they are detected, you should first find the most difficult queries
+    from the database point of view and then analyze possible resource leaks.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'Oracle: Shared pool free is too low'
+  expression: max(/Oracle by Zabbix agent 2/oracle.shared_pool_free,5m)<5
+  severity: warning
+  description: The free memory percent of the shared pool has been less than `{$ORACLE.SHARED.FREE.MIN.WARN}`%
+    for the last 5 minutes.
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'Oracle: Host has been restarted'
+  expression: last(/Oracle by Zabbix agent 2/oracle.uptime)<10m
+  severity: information
+  description: Uptime is less than 10 minutes.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'Oracle: Failed to fetch info data'
+  expression: nodata(/Oracle by Zabbix agent 2/oracle.uptime,30m)=1
+  severity: information
+  description: Zabbix has not received any data for the items for the last 5 minutes.
+    The database might be unavailable for connecting.
+  tags:
+  - tag: scope
+    value: availability
+- name: 'Oracle: Zabbix account will expire soon'
+  expression: last(/Oracle by Zabbix agent 2/oracle.user.info["","","******","ORA"])  <
+    7
+  severity: warning
+  description: The password for the Zabbix user in the database expires soon.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'Oracle: Version has changed'
+  expression: last(/Oracle by Zabbix agent 2/oracle.version["","","******","ORA"],#1)<>last(/Oracle
+    by Zabbix agent 2/oracle.version["","","******","ORA"],#2) and length(last(/Oracle
+    by Zabbix agent 2/oracle.version["","","******","ORA"]))>0
+  severity: information
+  description: The Oracle Database version has changed. Acknowledge to close the problem
+    manually.
+  tags:
+  - tag: scope
+    value: notice
+discovery_rules:
+- name: Archive log discovery
+  key: oracle.archive.discovery["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1h
+  item_prototypes:
+  - name: 'Archivelog ''{#DEST_NAME}'': Get archive log info'
+    key: oracle.archive.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DEST_NAME}"]
+    interval: 5m
+    value_type: text
+  - name: 'Archivelog ''{#DEST_NAME}'': Error'
+    key: oracle.archivelog_error["{#DEST_NAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.archive.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DEST_NAME}"]
+    value_type: text
+  - name: 'Archivelog ''{#DEST_NAME}'': Last sequence'
+    key: oracle.archivelog_log_sequence["{#DEST_NAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.archive.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DEST_NAME}"]
+    value_type: unsigned
+  - name: 'Archivelog ''{#DEST_NAME}'': Status'
+    key: oracle.archivelog_log_status["{#DEST_NAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.archive.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DEST_NAME}"]
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'Oracle: Archivelog ''{#DEST_NAME}'': Log Archive is not valid'
+    expression: last(/Oracle by Zabbix agent 2/oracle.archivelog_log_status["{#DEST_NAME}"])<2
+    severity: high
+- name: Database discovery
+  key: oracle.db.discovery["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1h
+  filter:
+  - macro: '{#DBNAME}'
+    value: '{$ORACLE.DBNAME.MATCHES}'
+  - macro: '{#DBNAME}'
+    value: '{$ORACLE.DBNAME.NOT_MATCHES}'
+  item_prototypes:
+  - name: 'Database ''{#DBNAME}'': Get CDB and No-CDB info'
+    key: oracle.cdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DBNAME}"]
+    interval: 1m
+    value_type: text
+  - name: 'Database ''{#DBNAME}'': Force logging'
+    key: oracle.db_force_logging["{#DBNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.cdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DBNAME}"]
+    value_type: unsigned
+  - name: 'Database ''{#DBNAME}'': Log mode'
+    key: oracle.db_log_mode["{#DBNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.cdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DBNAME}"]
+    value_type: unsigned
+  - name: 'Database ''{#DBNAME}'': Open status'
+    key: oracle.db_open_mode["{#DBNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.cdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DBNAME}"]
+    value_type: unsigned
+  - name: 'Database ''{#DBNAME}'': Role'
+    key: oracle.db_role["{#DBNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.cdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DBNAME}"]
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'Oracle: Database ''{#DBNAME}'': Force logging is deactivated for DB with
+      active Archivelog'
+    expression: last(/Oracle by Zabbix agent 2/oracle.db_force_logging["{#DBNAME}"])
+      = 0 and last(/Oracle by Zabbix agent 2/oracle.db_log_mode["{#DBNAME}"]) = 1
+    severity: warning
+  - name: 'Oracle: Database ''{#DBNAME}'': Open status in mount mode'
+    expression: last(/Oracle by Zabbix agent 2/oracle.db_open_mode["{#DBNAME}"])=1
+    severity: warning
+  - name: 'Oracle: Database ''{#DBNAME}'': Open status has changed'
+    expression: last(/Oracle by Zabbix agent 2/oracle.db_open_mode["{#DBNAME}"],#1)<>last(/Oracle
+      by Zabbix agent 2/oracle.db_open_mode["{#DBNAME}"],#2)
+    severity: information
+    allow_manual_close: true
+  - name: 'Oracle: Database ''{#DBNAME}'': Role has changed'
+    expression: last(/Oracle by Zabbix agent 2/oracle.db_role["{#DBNAME}"],#1)<>last(/Oracle
+      by Zabbix agent 2/oracle.db_role["{#DBNAME}"],#2)
+    severity: information
+    allow_manual_close: true
+- name: ASM disk groups discovery
+  key: oracle.diskgroups.discovery["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1h
+  item_prototypes:
+  - name: 'ASM ''{#DGNAME}'': Get ASM stats'
+    key: oracle.diskgroups.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DGNAME}"]
+    interval: 1m
+    value_type: text
+  - name: 'ASM ''{#DGNAME}'': Free size'
+    key: oracle.asm_free_size["{#DGNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.diskgroups.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DGNAME}"]
+    value_type: unsigned
+    units: B
+  - name: 'ASM ''{#DGNAME}'': Total size'
+    key: oracle.asm_total_size["{#DGNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.diskgroups.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DGNAME}"]
+    value_type: unsigned
+    units: B
+  - name: 'ASM ''{#DGNAME}'': Used size, percent'
+    key: oracle.asm_used_pct["{#DGNAME}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.diskgroups.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#DGNAME}"]
+    units: '%'
+  trigger_prototypes:
+  - name: 'Oracle: ASM ''{#DGNAME}'': Disk group usage is too high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.asm_used_pct["{#DGNAME}"],5m)>95
+    severity: high
+  - name: 'Oracle: ASM ''{#DGNAME}'': Disk group usage is too high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.asm_used_pct["{#DGNAME}"],5m)>90
+    severity: warning
+- name: PDB discovery
+  key: oracle.pdb.discovery["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1h
+  filter:
+  - macro: '{#DBNAME}'
+    value: '{$ORACLE.DBNAME.MATCHES}'
+  - macro: '{#DBNAME}'
+    value: '{$ORACLE.DBNAME.NOT_MATCHES}'
+  item_prototypes:
+  - name: 'Database ''{#DBNAME}'': Get PDB info'
+    key: oracle.pdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#CON_ID}"]
+    interval: 1m
+    value_type: text
+  - name: 'Database ''{#DBNAME}'': Open status'
+    key: oracle.pdb_open_mode["{#CON_ID}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.pdb.info["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#CON_ID}"]
+    value_type: unsigned
+  trigger_prototypes:
+  - name: 'Oracle: Database ''{#DBNAME}'': Open status in mount mode'
+    expression: last(/Oracle by Zabbix agent 2/oracle.pdb_open_mode["{#CON_ID}"])=1
+    severity: warning
+  - name: 'Oracle: Database ''{#DBNAME}'': Open status has changed'
+    expression: last(/Oracle by Zabbix agent 2/oracle.pdb_open_mode["{#CON_ID}"],#1)<>last(/Oracle
+      by Zabbix agent 2/oracle.pdb_open_mode["{#CON_ID}"],#2)
+    severity: information
+    allow_manual_close: true
+- name: Tablespace discovery
+  key: oracle.ts.discovery["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}"]
+  interval: 1h
+  filter:
+  - macro: '{#CON_NAME}'
+    value: '{$ORACLE.TABLESPACE.CONTAINER.MATCHES}'
+  - macro: '{#CON_NAME}'
+    value: '{$ORACLE.TABLESPACE.CONTAINER.NOT_MATCHES}'
+  - macro: '{#TABLESPACE}'
+    value: '{$ORACLE.TABLESPACE.NAME.MATCHES}'
+  - macro: '{#TABLESPACE}'
+    value: '{$ORACLE.TABLESPACE.NAME.NOT_MATCHES}'
+  item_prototypes:
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Get tablespaces stats'
+    key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    interval: 1m
+    value_type: text
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace allocated, bytes'
+    key: oracle.tbs_alloc_bytes["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    value_type: unsigned
+    units: B
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace free, bytes'
+    key: oracle.tbs_free_bytes["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    value_type: unsigned
+    units: B
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace MAX size, bytes'
+    key: oracle.tbs_max_bytes["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    value_type: unsigned
+    units: B
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Open status'
+    key: oracle.tbs_status["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    value_type: unsigned
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace used, bytes'
+    key: oracle.tbs_used_bytes["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    value_type: unsigned
+    units: B
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace usage, percent'
+    key: oracle.tbs_used_file_pct["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    units: '%'
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace usage from MAX, percent'
+    key: oracle.tbs_used_from_max_pct["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    units: '%'
+  - name: '''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace allocated, percent'
+    key: oracle.tbs_used_pct["{#CON_ID}","{#TABLESPACE}"]
+    interval: '0'
+    type: dependent
+    master_item_key: oracle.ts.stats["{$ORACLE.CONNSTRING}","{$ORACLE.USER}","{$ORACLE.PASSWORD}","{$ORACLE.SERVICE}","{#TABLESPACE}","{#CONTENTS}","{#CON_ID}"]
+    units: '%'
+  trigger_prototypes:
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace is OFFLINE'
+    expression: last(/Oracle by Zabbix agent 2/oracle.tbs_status["{#CON_ID}","{#TABLESPACE}"])=2
+    severity: warning
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace status has changed'
+    expression: last(/Oracle by Zabbix agent 2/oracle.tbs_status["{#CON_ID}","{#TABLESPACE}"],#1)<>last(/Oracle
+      by Zabbix agent 2/oracle.tbs_status["{#CON_ID}","{#TABLESPACE}"],#2)
+    severity: information
+    allow_manual_close: true
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace usage is too
+      high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.tbs_used_file_pct["{#CON_ID}","{#TABLESPACE}"],5m)>95
+    severity: high
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace usage is too
+      high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.tbs_used_file_pct["{#CON_ID}","{#TABLESPACE}"],5m)>90
+    severity: warning
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace usage from MAX
+      is too high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.tbs_used_from_max_pct["{#CON_ID}","{#TABLESPACE}"],5m)>90
+    severity: warning
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace utilization from
+      MAX is too high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.tbs_used_from_max_pct["{#CON_ID}","{#TABLESPACE}"],5m)>95
+    severity: high
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace utilization is
+      too high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.tbs_used_pct["{#CON_ID}","{#TABLESPACE}"],5m)>90
+    severity: high
+  - name: 'Oracle: ''{#CON_NAME}'' TBS ''{#TABLESPACE}'': Tablespace utilization is
+      too high'
+    expression: min(/Oracle by Zabbix agent 2/oracle.tbs_used_pct["{#CON_ID}","{#TABLESPACE}"],5m)>80
+    severity: warning

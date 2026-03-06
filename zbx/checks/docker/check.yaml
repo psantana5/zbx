@@ -1,0 +1,108 @@
+# docker check
+#
+# Monitors Docker daemon health, container counts and per-container metrics.
+#
+# Deploy the script:
+#   sudo cp scripts/check_docker.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_docker.py
+#   pip install docker
+#   sudo usermod -aG docker zabbix   # allow agent to access Docker socket
+#
+# Add to Zabbix agent config:
+#   UserParameter=docker.stat[*],/usr/local/zbx/scripts/check_docker.py $1 "$2"
+#
+# Deploy:
+#   zbx apply configs/checks/docker/
+
+template: docker
+name: "Docker"
+description: "Docker daemon health, container counts, and per-container CPU/memory"
+groups:
+  - Templates
+  - Templates/Applications
+
+items:
+  - name: Docker daemon ping
+    key: "docker.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 if Docker daemon is responsive, 0 otherwise"
+    tags:
+      - tag: component
+        value: docker
+
+  - name: Running containers
+    key: "docker.stat[containers.running]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of containers in 'running' state"
+    tags:
+      - tag: component
+        value: docker
+
+  - name: Stopped containers
+    key: "docker.stat[containers.stopped]"
+    interval: 5m
+    value_type: unsigned
+    description: "Number of containers not in 'running' state"
+    tags:
+      - tag: component
+        value: docker
+
+  - name: Total containers
+    key: "docker.stat[containers.total]"
+    interval: 5m
+    value_type: unsigned
+    description: "Total containers (running + stopped)"
+    tags:
+      - tag: component
+        value: docker
+
+  - name: Total images
+    key: "docker.stat[images.total]"
+    interval: 1h
+    value_type: unsigned
+    description: "Number of locally cached Docker images"
+    tags:
+      - tag: component
+        value: docker
+
+triggers:
+  - name: Docker daemon is unreachable
+    expression: "last(/docker/docker.stat[ping]) = 0"
+    severity: high
+    description: "Docker daemon is not responding. Containers cannot be managed."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: No running containers
+    expression: "last(/docker/docker.stat[containers.running]) = 0"
+    severity: average
+    description: "No containers are running. This may indicate a service outage."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: High number of stopped containers (> 20)
+    expression: "last(/docker/docker.stat[containers.stopped]) > 20"
+    severity: warning
+    description: "Many stopped containers. Consider running 'docker container prune'."
+    tags:
+      - tag: scope
+        value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_docker.py
+      dest: /usr/local/zbx/scripts/check_docker.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-docker
+      parameters:
+        - key: "docker.stat[*]"
+          command: "/usr/local/zbx/scripts/check_docker.py $1"
+  test_keys:
+    - "docker.stat[ping]"

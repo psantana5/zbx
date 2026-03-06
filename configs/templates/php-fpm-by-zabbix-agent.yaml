@@ -1,0 +1,335 @@
+template: PHP-FPM by Zabbix agent
+description: "Get PHP-FPM metrics using Zabbix agent running on Linux.\r\n\r\nNote\
+  \ that depending on your OS distribution, the PHP-FPM process name may vary. Please,\
+  \ check the actual name in the line \"Name\" from /proc/<pid>/status file (https://www.zabbix.com/documentation/7.4/manual/appendix/items/proc_mem_num_notes)\
+  \ and change {$PHP_FPM.PROCESS.NAME.PARAMETER} macro if needed.\r\n\r\nGenerated\
+  \ by official Zabbix template tool \"Templator\""
+groups:
+- Templates
+items:
+- name: Accepted connections per second
+  key: php-fpm.conn_accepted.rate
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  description: The number of accepted requests per second.
+  history: 31d
+  tags:
+  - tag: component
+    value: connections
+- name: Listen queue
+  key: php-fpm.listen_queue
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The current number of connections that have been initiated but not
+    yet accepted.
+  history: 31d
+  tags:
+  - tag: component
+    value: listen-queue
+- name: Listen queue, len
+  key: php-fpm.listen_queue_len
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The size of the socket queue of pending connections.
+  history: 31d
+  tags:
+  - tag: component
+    value: listen-queue
+- name: Listen queue, max
+  key: php-fpm.listen_queue_max
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The maximum number of requests in the queue of pending connections
+    since this FPM pool was started.
+  history: 31d
+  tags:
+  - tag: component
+    value: listen-queue
+- name: Queue usage
+  key: php-fpm.listen_queue_usage
+  interval: 1m
+  type: calculated
+  params: last(//php-fpm.listen_queue)/(last(//php-fpm.listen_queue_len)+(last(//php-fpm.listen_queue_len)=0))*100
+  units: '%'
+  description: The utilization of the queue.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Max children reached
+  key: php-fpm.max_children
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The number of times that `pm.max_children` has been reached since the
+    PHP-FPM pool was started.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Pool name
+  key: php-fpm.name
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: char
+  description: The name of the current pool.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: Ping
+  key: php-fpm.ping
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.PING.PAGE}","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+- name: Process manager
+  key: php-fpm.process_manager
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: char
+  description: The method used by the process manager to control the number of child
+    processes for this pool.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: Processes, active
+  key: php-fpm.processes_active
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The total number of active processes.
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+- name: Processes, idle
+  key: php-fpm.processes_idle
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The total number of idle processes.
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+- name: Processes, max active
+  key: php-fpm.processes_max_active
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The highest value of "active processes" since the PHP-FPM server was
+    started.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Processes, total
+  key: php-fpm.processes_total
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The total number of server processes currently running.
+  history: 31d
+  tags:
+  - tag: component
+    value: system
+- name: Slow requests
+  key: php-fpm.slow_requests
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  description: The number of requests that has exceeded your `request_slowlog_timeout`
+    value.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Start time
+  key: php-fpm.start_time
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  units: unixtime
+  description: The time when this pool was started.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Uptime
+  key: php-fpm.uptime
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  value_type: unsigned
+  units: s
+  description: It indicates how long has this pool been running.
+  history: 31d
+  tags:
+  - tag: component
+    value: application
+- name: Version
+  key: php-fpm.version
+  interval: '0'
+  type: dependent
+  master_item_key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.PING.PAGE}","{$PHP_FPM.PORT}"]
+  value_type: char
+  description: The current version of the PHP. You can get it from the HTTP-Header
+    "X-Powered-By"; it may not work if you have changed the default HTTP-headers.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: application
+- name: Get processes summary
+  key: proc.get[{$PHP_FPM.PROCESS.NAME.PARAMETER},,,summary]
+  interval: 1m
+  value_type: text
+  description: The aggregated data of summary metrics for all processes.
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+- name: php-fpm_ping
+  key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.PING.PAGE}","{$PHP_FPM.PORT}"]
+  interval: 1m
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: health
+- name: Get status page
+  key: web.page.get["{$PHP_FPM.HOST}","{$PHP_FPM.STATUS.PAGE}?json","{$PHP_FPM.PORT}"]
+  interval: 1m
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+triggers:
+- name: 'PHP-FPM: Queue utilization is high'
+  expression: min(/PHP-FPM by Zabbix agent/php-fpm.listen_queue_usage,15m) > 80
+  severity: warning
+  description: "The queue for this pool has reached `{$PHP_FPM.QUEUE.WARN.MAX}%` of\
+    \ its maximum capacity. \r\nItems in the queue represent the current number of\
+    \ connections that have been initiated on this pool but not yet accepted."
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'PHP-FPM: Manager changed'
+  expression: last(/PHP-FPM by Zabbix agent/php-fpm.process_manager,#1)<>last(/PHP-FPM
+    by Zabbix agent/php-fpm.process_manager,#2)
+  severity: information
+  description: The PHP-FPM manager has changed. Acknowledge to close the problem manually.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'PHP-FPM: Detected slow requests'
+  expression: min(/PHP-FPM by Zabbix agent/php-fpm.slow_requests,#3)>0
+  severity: warning
+  description: "The PHP-FPM has detected a slow request. \r\nThe slow request means\
+    \ that it took more time to execute than expected (defined in the configuration\
+    \ of your pool)."
+  tags:
+  - tag: scope
+    value: performance
+- name: 'PHP-FPM: Pool has been restarted'
+  expression: last(/PHP-FPM by Zabbix agent/php-fpm.uptime)<10m
+  severity: information
+  description: Uptime is less than 10 minutes.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'PHP-FPM: Version has changed'
+  expression: last(/PHP-FPM by Zabbix agent/php-fpm.version,#1)<>last(/PHP-FPM by
+    Zabbix agent/php-fpm.version,#2) and length(last(/PHP-FPM by Zabbix agent/php-fpm.version))>0
+  severity: information
+  description: The PHP-FPM version has changed. Acknowledge to close the problem manually.
+  tags:
+  - tag: scope
+    value: notice
+discovery_rules:
+- name: PHP-FPM process discovery
+  key: php-fpm.proc.discovery
+  interval: '0'
+  type: dependent
+  master_item_key: proc.get[{$PHP_FPM.PROCESS.NAME.PARAMETER},,,summary]
+  filter:
+  - macro: '{#PHP_FPM.NAME}'
+    value: '{$PHP_FPM.PROCESS_NAME}'
+  item_prototypes:
+  - name: CPU utilization
+    key: proc.cpu.util[{#PHP_FPM.NAME}]
+    interval: 1m
+    units: '%'
+  - name: Get process data
+    key: php-fpm.proc.get[{#PHP_FPM.NAME}]
+    interval: '0'
+    type: dependent
+    value_type: text
+  - name: Number of running processes
+    key: php-fpm.proc.num[{#PHP_FPM.NAME}]
+    interval: '0'
+    type: dependent
+    master_item_key: php-fpm.proc.get[{#PHP_FPM.NAME}]
+    value_type: unsigned
+  - name: Memory usage, %
+    key: php-fpm.proc.pmem[{#PHP_FPM.NAME}]
+    interval: '0'
+    type: dependent
+    master_item_key: php-fpm.proc.get[{#PHP_FPM.NAME}]
+    units: '%'
+  - name: Memory usage (rss)
+    key: php-fpm.proc.rss[{#PHP_FPM.NAME}]
+    interval: '0'
+    type: dependent
+    master_item_key: php-fpm.proc.get[{#PHP_FPM.NAME}]
+    value_type: unsigned
+    units: B
+  - name: Memory usage (vsize)
+    key: php-fpm.proc.vmem[{#PHP_FPM.NAME}]
+    interval: '0'
+    type: dependent
+    master_item_key: php-fpm.proc.get[{#PHP_FPM.NAME}]
+    value_type: unsigned
+    units: B
+  trigger_prototypes:
+  - name: 'PHP-FPM: Failed to fetch info data'
+    expression: nodata(/PHP-FPM by Zabbix agent/php-fpm.uptime,30m)=1 and last(/PHP-FPM
+      by Zabbix agent/php-fpm.proc.num[{#PHP_FPM.NAME}])>0
+    severity: information
+    allow_manual_close: true
+  - name: 'PHP-FPM: Service is down'
+    expression: (last(/PHP-FPM by Zabbix agent/php-fpm.ping)=0 or nodata(/PHP-FPM
+      by Zabbix agent/php-fpm.ping,3m)=1) and last(/PHP-FPM by Zabbix agent/php-fpm.proc.num[{#PHP_FPM.NAME}])>0
+    severity: high
+    allow_manual_close: true
+  - name: 'PHP-FPM: Process is not running'
+    expression: last(/PHP-FPM by Zabbix agent/php-fpm.proc.num[{#PHP_FPM.NAME}])=0
+    severity: high

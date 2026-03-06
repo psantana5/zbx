@@ -1,0 +1,103 @@
+template: elasticsearch
+name: Elasticsearch
+description: >
+  Elasticsearch cluster and node health via the REST API: cluster status,
+  document counts, JVM heap usage, search and indexing latency.
+  Requires the Zabbix agent UserParameter script.
+groups:
+  - Templates
+  - Templates/Databases
+
+items:
+  - name: Elasticsearch ping
+    key: "elasticsearch.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    description: "1 = REST API reachable, 0 = down"
+
+  - name: Cluster status
+    key: "elasticsearch.stat[cluster_status]"
+    interval: 60s
+    value_type: unsigned
+    description: "0 = green, 1 = yellow, 2 = red"
+
+  - name: Active primary shards
+    key: "elasticsearch.stat[active_primary_shards]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Active shards
+    key: "elasticsearch.stat[active_shards]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Relocating shards
+    key: "elasticsearch.stat[relocating_shards]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Unassigned shards
+    key: "elasticsearch.stat[unassigned_shards]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Number of nodes
+    key: "elasticsearch.stat[number_of_nodes]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: JVM heap used (%)
+    key: "elasticsearch.stat[jvm_heap_used_percent]"
+    interval: 60s
+    value_type: float
+    units: "%"
+
+  - name: Index documents (total)
+    key: "elasticsearch.stat[docs_count]"
+    interval: 5m
+    value_type: unsigned
+
+  - name: Search query latency (ms)
+    key: "elasticsearch.stat[search_query_time_ms]"
+    interval: 60s
+    value_type: unsigned
+    units: ms
+
+triggers:
+  - name: Elasticsearch is unreachable
+    expression: "last(/elasticsearch/elasticsearch.stat[ping])=0"
+    severity: high
+
+  - name: Cluster status is RED
+    expression: "last(/elasticsearch/elasticsearch.stat[cluster_status])=2"
+    severity: disaster
+    description: "Primary shards are missing. Data may be unavailable."
+
+  - name: Cluster status is YELLOW
+    expression: "last(/elasticsearch/elasticsearch.stat[cluster_status])=1"
+    severity: average
+    description: "Replica shards are unassigned."
+
+  - name: Unassigned shards detected
+    expression: "last(/elasticsearch/elasticsearch.stat[unassigned_shards])>0"
+    severity: warning
+
+  - name: High JVM heap usage (> 85%)
+    expression: "last(/elasticsearch/elasticsearch.stat[jvm_heap_used_percent]) > 85"
+    severity: average
+    description: "High heap usage can trigger GC pauses and slow queries."
+
+agent:
+  scripts:
+    - source: scripts/check_elasticsearch.py
+      dest: /usr/local/zbx/scripts/check_elasticsearch.py
+      owner: zabbix
+      group: zabbix
+      mode: "0755"
+  userparameters:
+    - name: zbx-elasticsearch
+      parameters:
+        - key: "elasticsearch.stat[*]"
+          command: "/usr/local/zbx/scripts/check_elasticsearch.py $1"
+  test_keys:
+    - "elasticsearch.stat[ping]"

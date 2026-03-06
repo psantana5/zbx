@@ -1,0 +1,1170 @@
+template: HashiCorp Vault by HTTP
+description: "Get HashiCorp Vault metrics from Vault API HTTP Prometheus metrics endpoint.\r\
+  \n\r\nSome metrics may not be collected depending on your Vault instance version\
+  \ and configuration.\r\n\r\nYou can discuss this template or leave feedback on our\
+  \ forum https://www.zabbix.com/forum/zabbix-suggestions-and-feedback\r\n\r\nGenerated\
+  \ by official Zabbix template tool \"Templator\""
+groups:
+- Templates
+items:
+- name: Check mountpoint discovery
+  key: vault.check_mountpoint_discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: discovery
+  - tag: component
+    value: mountpoint
+- name: Check replication discovery
+  key: vault.check_replication_discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: discovery
+  - tag: component
+    value: replication
+- name: Check storage discovery
+  key: vault.check_storage_discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: discovery
+  - tag: component
+    value: storage
+- name: Check WAL discovery
+  key: vault.check_wal_discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: discovery
+  - tag: component
+    value: wal
+- name: Clear metrics
+  key: vault.clear_metrics
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_metrics
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: metrics
+  - tag: component
+    value: raw
+- name: Get health
+  key: vault.get_health
+  interval: 1m
+  type: http_agent
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: health
+  - tag: component
+    value: raw
+- name: Get leader
+  key: vault.get_leader
+  interval: 1m
+  type: http_agent
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: leader
+  - tag: component
+    value: raw
+- name: Get metrics
+  key: vault.get_metrics
+  interval: 1m
+  type: http_agent
+  value_type: text
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: metrics
+  - tag: component
+    value: raw
+- name: Get metrics error
+  key: vault.get_metrics.error
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_metrics
+  value_type: char
+  description: Get metrics error.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: health
+  - tag: component
+    value: metrics
+- name: Get tokens
+  key: vault.get_tokens
+  interval: 15m
+  type: script
+  params: "var params = JSON.parse(value);\r\n\r\nparams['url'] = params.scheme +\
+    \ '://'\r\n\t+ params.host + ':'\r\n\t+ params.port + '/v1/auth/token/lookup-accessor';\r\
+    \n\r\nvar request = new HttpRequest(),\r\n\toutput = [];\r\n\r\nrequest.addHeader('X-Vault-Token:\
+    \ ' + params.token);\r\n\r\nparams.accessors.trim().split(/\\x20+/).forEach(function\
+    \ (accessor) {\r\n\tif (!accessor) {\r\n\t\treturn;\r\n\t}\r\n\r\n\tvar response,\r\
+    \n\t\tdata = {},\r\n\t\terror_msg = '';\r\n\r\n\ttry {\r\n\t\tresponse = request.post(params.url,\
+    \ JSON.stringify({ accessor: accessor }));\r\n\t\tZabbix.log(4, '[ Vault API ]\
+    \ Received response with status code ' + request.getStatus() + ': ' + response);\r\
+    \n\r\n\t\tif (response !== null) {\r\n\t\t\ttry {\r\n\t\t\t\tresponse = JSON.parse(response);\r\
+    \n\t\t\t}\r\n\t\t\tcatch (error) {\r\n\t\t\t\tthrow 'Failed to parse response\
+    \ received from Vault API. Check debug log for more information.';\r\n\t\t\t}\r\
+    \n\t\t}\r\n\r\n\t\tif (request.getStatus() !== 200) {\r\n\t\t\tthrow response.errors\
+    \ && response.errors[0] || JSON.stringify(response);\r\n\t\t}\r\n\r\n\t\tif (typeof\
+    \ response !== 'object' || typeof response.data === 'undefined') {\r\n\t\t\tthrow\
+    \ 'Cannot lookup token from Vault API. Check debug log for more information.';\r\
+    \n\t\t}\r\n\r\n\t\tdata = response.data;\r\n\t}\r\n\tcatch (error) {\r\n\t\terror_msg\
+    \ = error;\r\n\t}\r\n\r\n\toutput.push({\r\n\t\t'accessor': accessor,\r\n\t\t\
+    'token_name': data.display_name || 'null',\r\n\t\t'ttl': data.ttl || 0,\r\n\t\t\
+    'has_ttl': !!data.expire_time,\r\n\t\t'error': error_msg.toString()\r\n\t});\r\
+    \n});\r\n\r\nreturn JSON.stringify(output);"
+  value_type: text
+  description: Get information about tokens via their accessors. Accessors are defined
+    in the macro "{$VAULT.TOKEN.ACCESSORS}".
+  history: '0'
+  trends: '0'
+  tags:
+  - tag: component
+    value: raw
+  - tag: component
+    value: tokens
+- name: Healthcheck
+  key: vault.health.check
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: unsigned
+  description: Vault healthcheck.
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+- name: Initialized
+  key: vault.health.initialized
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: unsigned
+  description: Initialization status.
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+- name: Performance standby
+  key: vault.health.performance_standby
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: unsigned
+  description: Performance standby status.
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+- name: Disaster Recovery replication
+  key: vault.health.replication_dr_mode
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: char
+  description: "Disaster recovery replication mode\r\nhttps://www.vaultproject.io/docs/enterprise/replication"
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: health
+- name: Performance replication
+  key: vault.health.replication_performance_mode
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: char
+  description: "Performance replication mode\r\nhttps://www.vaultproject.io/docs/enterprise/replication"
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: health
+- name: Sealed
+  key: vault.health.sealed
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: unsigned
+  description: Seal status.
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+- name: Standby
+  key: vault.health.standby
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: unsigned
+  description: Standby status.
+  history: 31d
+  tags:
+  - tag: component
+    value: health
+- name: Version
+  key: vault.health.version
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_health
+  value_type: char
+  description: Server version.
+  history: 31d
+  trends: '0'
+  tags:
+  - tag: component
+    value: health
+- name: HA enabled
+  key: vault.leader.ha_enabled
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_leader
+  value_type: unsigned
+  description: HA enabled status.
+  history: 31d
+  tags:
+  - tag: component
+    value: leader
+- name: Is leader
+  key: vault.leader.is_self
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_leader
+  value_type: unsigned
+  description: Leader status.
+  history: 31d
+  tags:
+  - tag: component
+    value: leader
+- name: Audit log request failures, rate
+  key: vault.metrics.audit.log.request.failure.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of audit log request failures.
+  history: 31d
+  tags:
+  - tag: component
+    value: audit_log
+- name: Audit log requests, rate
+  key: vault.metrics.audit.log.request.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: rps
+  description: Number of all audit log requests across all audit log devices.
+  history: 31d
+  tags:
+  - tag: component
+    value: audit_log
+- name: Audit log response failures, rate
+  key: vault.metrics.audit.log.response.failure.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of audit log response failures.
+  history: 31d
+  tags:
+  - tag: component
+    value: audit_log
+- name: Audit log response, rate
+  key: vault.metrics.audit.log.response.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: rps
+  description: Number of audit log responses across all audit log devices.
+  history: 31d
+  tags:
+  - tag: component
+    value: audit_log
+- name: Barrier DELETE ops, rate
+  key: vault.metrics.barrier.delete.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of DELETE operations at the barrier.
+  history: 31d
+  tags:
+  - tag: component
+    value: barrier
+- name: Barrier LIST ops, rate
+  key: vault.metrics.barrier.list.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of LIST operations at the barrier.
+  history: 31d
+  tags:
+  - tag: component
+    value: barrier
+- name: Barrier PUT ops, rate
+  key: vault.metrics.barrier.put.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of PUT operations at the barrier.
+  history: 31d
+  tags:
+  - tag: component
+    value: barrier
+- name: Cache hit, rate
+  key: vault.metrics.cache.hit.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of times a value was retrieved from the LRU cache.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Cache miss, rate
+  key: vault.metrics.cache.miss.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of times a value was not in the LRU cache. The results in a
+    read from the configured storage.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Cache write, rate
+  key: vault.metrics.cache.write.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of times a value was written to the LRU cache.
+  history: 31d
+  tags:
+  - tag: component
+    value: cache
+- name: Check token, rate
+  key: vault.metrics.core.check.token.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of token checks handled by Vault core.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Fetch ACL and token, rate
+  key: vault.metrics.core.fetch.acl_and_token
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of ACL and corresponding token entry fetches handled by Vault
+    core.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Requests, rate
+  key: vault.metrics.core.handle.request
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of requests handled by Vault core.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Leadership setup failed, counter
+  key: vault.metrics.core.leadership.setup_failed
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Cluster leadership setup failures which have occurred in a highly available
+    Vault cluster.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Leadership setup lost, counter
+  key: vault.metrics.core.leadership_lost
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Cluster leadership losses which have occurred in a highly available
+    Vault cluster.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Post-unseal ops, counter
+  key: vault.metrics.core.post_unseal
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Duration of time taken by post-unseal operations handled by Vault core.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Pre-seal ops, counter
+  key: vault.metrics.core.pre_seal
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Duration of time taken by pre-seal operations.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Seal ops, counter
+  key: vault.metrics.core.seal
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Duration of time taken by seal operations.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Internal seal ops, counter
+  key: vault.metrics.core.seal_internal
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Duration of time taken by internal seal operations.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Requested seal ops, counter
+  key: vault.metrics.core.seal_with_request
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Duration of time taken by requested seal operations.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Leadership step downs, counter
+  key: vault.metrics.core.step_down
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Cluster leadership step down.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Unseal ops, counter
+  key: vault.metrics.core.unseal
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Duration of time taken by unseal operations.
+  history: 31d
+  tags:
+  - tag: component
+    value: core
+- name: Fetch lease times, counter
+  key: vault.metrics.expire.fetch.lease.times
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Time taken to fetch lease times.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Fetch lease times by token, counter
+  key: vault.metrics.expire.fetch.lease.times.by_token
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Time taken to fetch lease times by token.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Number of expiring leases
+  key: vault.metrics.expire.num_leases
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Number of all leases which are eligible for eventual expiry.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Register ops, count
+  key: vault.metrics.expire.register
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken for register operations.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Register auth ops, count
+  key: vault.metrics.expire.register.auth
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken for register authentication operations which create lease
+    entries without lease ID.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Expire renew, count
+  key: vault.metrics.expire.renew
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to renew a lease.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Renew token, count
+  key: vault.metrics.expire.renew_token
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to renew a token which does not need to invoke a logical
+    backend.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Expire revoke, count
+  key: vault.metrics.expire.revoke
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to revoke a token.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Revoke secrets by token, count
+  key: vault.metrics.expire.revoke.by_token
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to revoke all secrets issued with a given token.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Expire revoke force, count
+  key: vault.metrics.expire.revoke.force
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to forcibly revoke a token.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Expire revoke prefix, count
+  key: vault.metrics.expire.revoke.prefix
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Tokens revoke on a prefix.
+  history: 31d
+  tags:
+  - tag: component
+    value: expire
+- name: Policy DELETE ops, rate
+  key: vault.metrics.policy.delete_policy.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of operations to delete a policy.
+  history: 31d
+  tags:
+  - tag: component
+    value: policy
+- name: Policy GET ops, rate
+  key: vault.metrics.policy.get_policy.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of operations to get a policy.
+  history: 31d
+  tags:
+  - tag: component
+    value: policy
+- name: Policy LIST ops, rate
+  key: vault.metrics.policy.list_policies.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of operations to list policies.
+  history: 31d
+  tags:
+  - tag: component
+    value: policy
+- name: Policy SET ops, rate
+  key: vault.metrics.policy.set_policy.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of operations to set a policy.
+  history: 31d
+  tags:
+  - tag: component
+    value: policy
+- name: Process CPU seconds, total
+  key: vault.metrics.process.cpu.seconds.total
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: s
+  description: Total user and system CPU time spent in seconds.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Open file descriptors, max
+  key: vault.metrics.process.max.fds
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Maximum number of open file descriptors.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Open file descriptors, current
+  key: vault.metrics.process.open.fds
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of open file descriptors.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Process resident memory
+  key: vault.metrics.process.resident_memory.bytes
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: B
+  description: Resident memory size in bytes.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Uptime
+  key: vault.metrics.process.uptime
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  units: s
+  description: Server uptime.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Process virtual memory, current
+  key: vault.metrics.process.virtual_memory.bytes
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: B
+  description: Virtual memory size in bytes.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Process virtual memory, max
+  key: vault.metrics.process.virtual_memory.max.bytes
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: B
+  description: Maximum amount of virtual memory available in bytes.
+  history: 31d
+  tags:
+  - tag: component
+    value: process
+- name: Runtime allocated bytes
+  key: vault.metrics.runtime.alloc.bytes
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: B
+  description: Number of bytes allocated by the Vault process. This could burst from
+    time to time, but should return to a steady state value.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Runtime freed objects
+  key: vault.metrics.runtime.free.count
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of freed objects.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Runtime heap objects
+  key: vault.metrics.runtime.heap.objects
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of objects on the heap. This is a good general memory pressure
+    indicator worth establishing a baseline and thresholds for alerting.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Runtime malloc count
+  key: vault.metrics.runtime.malloc.count
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Cumulative count of allocated heap objects.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Runtime num goroutines
+  key: vault.metrics.runtime.num_goroutines
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of goroutines. This serves as a general system load indicator
+    worth establishing a baseline and thresholds for alerting.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Runtime sys bytes
+  key: vault.metrics.runtime.sys.bytes
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  units: B
+  description: Number of bytes allocated to Vault. This includes what is being used
+    by Vault's heap and what has been reclaimed but not given back to the operating
+    system.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Runtime GC runs, total
+  key: vault.metrics.runtime.total.gc.runs
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Total number of garbage collection runs since Vault was last started.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Secret kv entries
+  key: vault.metrics.secret.kv.count
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Number of entries in each key-value secret engine.
+  history: 31d
+  tags:
+  - tag: component
+    value: secret
+- name: Token secret lease creation, rate
+  key: vault.metrics.secret.lease.creation.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Counts the number of leases created by secret engines.
+  history: 31d
+  tags:
+  - tag: component
+    value: secret
+- name: Token count, total
+  key: vault.metrics.token
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Total number of service tokens available for use; counts all un-expired
+    and un-revoked tokens in Vault's token store. This measurement is performed every
+    10 minutes.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token count by auth, total
+  key: vault.metrics.token.by_auth
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Total number of service tokens that were created by an auth method.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token count by policy, total
+  key: vault.metrics.token.by_policy
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Total number of service tokens that have a policy attached.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token count by ttl, total
+  key: vault.metrics.token.by_ttl
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  description: Number of service tokens, grouped by the TTL range they were assigned
+    at creation.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token create, count
+  key: vault.metrics.token.create
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: The time taken to create a token.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token createAccessor, count
+  key: vault.metrics.token.createAccessor
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: The time taken to create a token accessor.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token creation, rate
+  key: vault.metrics.token.creation.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of service or batch tokens created.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token lookup, rate
+  key: vault.metrics.token.lookup.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of token look up.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token revoke, count
+  key: vault.metrics.token.revoke
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: The time taken to look up a token.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token revoke tree, count
+  key: vault.metrics.token.revoke.tree
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to revoke a token tree.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Token store, count
+  key: vault.metrics.token.store
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Time taken to store an updated token entry without writing to the secondary
+    index.
+  history: 31d
+  tags:
+  - tag: component
+    value: token
+- name: Runtime GC pause, total
+  key: vault.metrics.total.gc.pause
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  value_type: unsigned
+  units: s
+  description: The total garbage collector pause time since Vault was last started.
+  history: 31d
+  tags:
+  - tag: component
+    value: runtime
+- name: Barrier GET ops, rate
+  key: vault.metrics.vault.barrier.get.rate
+  interval: '0'
+  type: dependent
+  master_item_key: vault.clear_metrics
+  description: Number of GET operations at the barrier.
+  history: 31d
+  tags:
+  - tag: component
+    value: barrier
+triggers:
+- name: 'HashiCorp Vault: Failed to get metrics'
+  expression: length(last(/HashiCorp Vault by HTTP/vault.get_metrics.error))>0
+  severity: warning
+  tags:
+  - tag: scope
+    value: availability
+- name: 'HashiCorp Vault: Vault server is not responding'
+  expression: last(/HashiCorp Vault by HTTP/vault.health.check)=0
+  severity: high
+  tags:
+  - tag: scope
+    value: availability
+- name: 'HashiCorp Vault: Vault server is sealed'
+  expression: last(/HashiCorp Vault by HTTP/vault.health.sealed)=1
+  severity: average
+  description: https://www.vaultproject.io/docs/concepts/seal
+  tags:
+  - tag: scope
+    value: availability
+- name: 'HashiCorp Vault: Version has changed'
+  expression: last(/HashiCorp Vault by HTTP/vault.health.version,#1)<>last(/HashiCorp
+    Vault by HTTP/vault.health.version,#2) and length(last(/HashiCorp Vault by HTTP/vault.health.version))>0
+  severity: information
+  description: Vault version has changed. Acknowledge to close the problem manually.
+  tags:
+  - tag: scope
+    value: notice
+- name: 'HashiCorp Vault: High frequency of leadership setup failures'
+  expression: (max(/HashiCorp Vault by HTTP/vault.metrics.core.leadership.setup_failed,1h)-min(/HashiCorp
+    Vault by HTTP/vault.metrics.core.leadership.setup_failed,1h))>5
+  severity: average
+  description: There have been more than {$VAULT.LEADERSHIP.SETUP.FAILED.MAX.WARN}
+    Vault leadership setup failures in the past 1h.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'HashiCorp Vault: High frequency of leadership losses'
+  expression: (max(/HashiCorp Vault by HTTP/vault.metrics.core.leadership_lost,1h)-min(/HashiCorp
+    Vault by HTTP/vault.metrics.core.leadership_lost,1h))>5
+  severity: average
+  description: There have been more than {$VAULT.LEADERSHIP.LOSSES.MAX.WARN} Vault
+    leadership losses in the past 1h.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'HashiCorp Vault: High frequency of leadership step downs'
+  expression: (max(/HashiCorp Vault by HTTP/vault.metrics.core.step_down,1h)-min(/HashiCorp
+    Vault by HTTP/vault.metrics.core.step_down,1h))>5
+  severity: average
+  description: There have been more than {$VAULT.LEADERSHIP.STEPDOWNS.MAX.WARN} Vault
+    leadership step downs in the past 1h.
+  tags:
+  - tag: scope
+    value: performance
+- name: 'HashiCorp Vault: Current number of open files is too high'
+  expression: min(/HashiCorp Vault by HTTP/vault.metrics.process.open.fds,5m)/last(/HashiCorp
+    Vault by HTTP/vault.metrics.process.max.fds)*100>90
+  severity: warning
+  tags:
+  - tag: scope
+    value: capacity
+- name: 'HashiCorp Vault: Service has been restarted'
+  expression: last(/HashiCorp Vault by HTTP/vault.metrics.process.uptime)<10m
+  severity: information
+  description: Uptime is less than 10 minutes.
+  tags:
+  - tag: scope
+    value: notice
+discovery_rules:
+- name: Mountpoint metrics discovery
+  key: vault.mountpoint.discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.check_mountpoint_discovery
+  item_prototypes:
+  - name: Rollback attempt [{#MOUNTPOINT}] ops, rate
+    key: vault.metrics.rollback.attempt.rate[{#MOUNTPOINT}]
+    interval: '0'
+    type: dependent
+  - name: Route rollback [{#MOUNTPOINT}] ops, rate
+    key: vault.metrics.route.rollback.rate[{#MOUNTPOINT}]
+    interval: '0'
+    type: dependent
+- name: Replication metrics discovery
+  key: vault.replication.discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.check_replication_discovery
+  item_prototypes:
+  - name: Stream WAL guard found, count{#SINGLETON}
+    key: vault.metrics.logshipper.streamWALs.guard_found[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Stream WAL missing guard, count{#SINGLETON}
+    key: vault.metrics.logshipper.streamWALs.missing_guard[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Last remote WAL{#SINGLETON}
+    key: vault.metrics.replication.fsm.last_remote_wal[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Merkle commit index{#SINGLETON}
+    key: vault.metrics.replication.merkle.commit_index[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Last DR WAL{#SINGLETON}
+    key: vault.metrics.replication.wal.last_dr_wal[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Last performance WAL{#SINGLETON}
+    key: vault.metrics.replication.wal.last_performance_wal[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Last WAL{#SINGLETON}
+    key: vault.metrics.replication.wal.last_wal[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+- name: Storage metrics discovery
+  key: vault.storage.discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.check_storage_discovery
+  filter:
+  - macro: '{#STORAGE}'
+    value: '{$VAULT.LLD.FILTER.STORAGE.MATCHES}'
+  item_prototypes:
+  - name: Storage [{#STORAGE}] {#OPERATION} ops, rate
+    key: vault.metrics.storage.rate[{#STORAGE}, {#OPERATION}]
+    interval: '0'
+    type: dependent
+- name: Token metrics discovery
+  key: vault.tokens.discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.get_tokens
+  item_prototypes:
+  - name: Token [{#TOKEN_NAME}] error
+    key: vault.token_via_accessor.error["{#ACCESSOR}"]
+    interval: '0'
+    type: dependent
+    value_type: char
+  - name: Token [{#TOKEN_NAME}] has TTL
+    key: vault.token_via_accessor.has_ttl["{#ACCESSOR}"]
+    interval: '0'
+    type: dependent
+    value_type: unsigned
+  - name: Token [{#TOKEN_NAME}] TTL
+    key: vault.token_via_accessor.ttl["{#ACCESSOR}"]
+    interval: '0'
+    type: dependent
+    value_type: unsigned
+    units: s
+  trigger_prototypes:
+  - name: 'HashiCorp Vault: Token [{#TOKEN_NAME}] lookup error occurred'
+    expression: length(last(/HashiCorp Vault by HTTP/vault.token_via_accessor.error["{#ACCESSOR}"]))>0
+    severity: warning
+  - name: 'HashiCorp Vault: Token [{#TOKEN_NAME}] will expire soon'
+    expression: last(/HashiCorp Vault by HTTP/vault.token_via_accessor.has_ttl["{#ACCESSOR}"])=1
+      and last(/HashiCorp Vault by HTTP/vault.token_via_accessor.ttl["{#ACCESSOR}"])<3d
+    severity: average
+  - name: 'HashiCorp Vault: Token [{#TOKEN_NAME}] will expire soon'
+    expression: last(/HashiCorp Vault by HTTP/vault.token_via_accessor.has_ttl["{#ACCESSOR}"])=1
+      and last(/HashiCorp Vault by HTTP/vault.token_via_accessor.ttl["{#ACCESSOR}"])<7d
+    severity: warning
+- name: WAL metrics discovery
+  key: vault.wal.discovery
+  interval: '0'
+  type: dependent
+  master_item_key: vault.check_wal_discovery
+  item_prototypes:
+  - name: Delete WALs, count{#SINGLETON}
+    key: vault.metrics.wal.deletewals[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Flush ready WAL, count{#SINGLETON}
+    key: vault.metrics.wal.flushready[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: GC deleted WAL{#SINGLETON}
+    key: vault.metrics.wal.gc.deleted[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: WALs on disk, total{#SINGLETON}
+    key: vault.metrics.wal.gc.total[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Load WALs, count{#SINGLETON}
+    key: vault.metrics.wal.loadWAL[{#SINGLETON}]
+    interval: '0'
+    type: dependent
+  - name: Persist WALs, count{#SINGLETON}
+    key: vault.metrics.wal.persistwals[{#SINGLETON}]
+    interval: '0'
+    type: dependent

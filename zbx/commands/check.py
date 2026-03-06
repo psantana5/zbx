@@ -1,14 +1,15 @@
 """zbx check — discover and deploy bundled community monitoring checks.
 
 Commands:
-    zbx check list              Table of all checks in configs/checks/
+    zbx check list              Table of all bundled checks
     zbx check info <name>       Show template details for a check
-    zbx check install <name> <host>
-                                Apply template to Zabbix + deploy agent in one step
+    zbx check install <name>    Copy check to configs/checks/ then apply to Zabbix
 """
 
 from __future__ import annotations
 
+import importlib.resources
+import shutil
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -30,6 +31,22 @@ _DEFAULT_CHECKS_DIR = Path("configs/checks")
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _bundled_checks_dir() -> Path:
+    """Return the path to bundled checks shipped inside the zbx package."""
+    # Works for both editable installs and pip-installed wheels
+    pkg_root = Path(importlib.resources.files("zbx").__str__())  # type: ignore[arg-type]
+    bundled = pkg_root / "checks"
+    if bundled.exists():
+        return bundled
+    # Fallback: repo layout (configs/checks relative to cwd)
+    fallback = Path("configs/checks")
+    if fallback.exists():
+        return fallback
+    raise FileNotFoundError(
+        "Bundled checks not found. Re-install zbxctl: pip install --upgrade zbxctl"
+    )
+
+
 def _find_checks(checks_dir: Path) -> list[dict]:
     """Return metadata for every check.yaml under checks_dir."""
     found = []
@@ -42,41 +59,32 @@ def _find_checks(checks_dir: Path) -> list[dict]:
             continue
         if not raw:
             continue
-        # Support both single-template and list format
-        if isinstance(raw, list):
-            tmpl = raw[0] if raw else {}
-        else:
-            tmpl = raw
-
-        items = tmpl.get("items", [])
-        triggers = tmpl.get("triggers", [])
-        discovery_rules = tmpl.get("discovery_rules", [])
-        has_agent = "agent" in tmpl
+        tmpl = raw[0] if isinstance(raw, list) else raw
 
         found.append({
             "name": folder.name,
             "template": tmpl.get("template", folder.name),
             "description": (tmpl.get("description") or "")[:60],
-            "items": len(items),
-            "triggers": len(triggers),
-            "discovery_rules": len(discovery_rules),
-            "has_agent": has_agent,
+            "items": len(tmpl.get("items", [])),
+            "triggers": len(tmpl.get("triggers", [])),
+            "discovery_rules": len(tmpl.get("discovery_rules", [])),
+            "has_script": (folder / "scripts").exists() or bool(tmpl.get("agent")),
             "path": folder,
         })
     return found
 
 
-def _resolve_check(name: str, checks_dir: Path) -> Path:
-    """Find the check folder by exact or partial name."""
+def _resolve_bundled(name: str) -> Path:
+    """Find a bundled check by exact or partial name."""
+    checks_dir = _bundled_checks_dir()
     candidates = [d for d in checks_dir.iterdir() if d.is_dir() and name.lower() in d.name.lower()]
     if not candidates:
-        rprint(f"[red]fail[/red] No check matching '{name}' in {checks_dir}.")
-        rprint(f"  Run [bold]zbx check list[/bold] to see available checks.")
+        rprint(f"[red]✗[/red] No bundled check matching '{name}'.")
+        rprint("  Run [bold]zbx check list[/bold] to see available checks.")
         raise typer.Exit(1)
     if len(candidates) > 1:
-        names = ", ".join(c.name for c in candidates)
-        rprint(f"[yellow]![/yellow] Ambiguous name '{name}' matches: {names}")
-        rprint("  Use the exact folder name.")
+        rprint(f"[yellow]![/yellow] Ambiguous — '{name}' matches: {', '.join(c.name for c in candidates)}")
+        rprint("  Use the exact name shown in [bold]zbx check list[/bold].")
         raise typer.Exit(1)
     return candidates[0]
 
@@ -86,44 +94,49 @@ def _resolve_check(name: str, checks_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 @app.command("list")
-def check_list(
-    checks_dir: Annotated[Path, typer.Option("--checks-dir", help="Root checks folder.")] = _DEFAULT_CHECKS_DIR,
-) -> None:
+def check_list() -> None:
     """List all bundled monitoring checks."""
-    if not checks_dir.exists():
-        rprint(f"[yellow]![/yellow]  Checks directory not found: {checks_dir}")
-        raise typer.Exit(1)
+    try:
+        checks_dir = _bundled_checks_dir()
+    except FileNotFoundError as exc:
+        rprint(f"[red]✗[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     checks = _find_checks(checks_dir)
     if not checks:
-        rprint(f"[yellow]No checks found in {checks_dir}[/yellow]")
+        rprint("[yellow]No bundled checks found.[/yellow]")
         raise typer.Exit(0)
+
+    # Mark which are already installed locally
+    local_names = {d.name for d in _DEFAULT_CHECKS_DIR.iterdir() if d.is_dir()} \
+        if _DEFAULT_CHECKS_DIR.exists() else set()
 
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Name", style="bold")
-    table.add_column("Template ID")
+    table.add_column("Template")
     table.add_column("Items", justify="right")
     table.add_column("Triggers", justify="right")
-    table.add_column("Rules", justify="right")
-    table.add_column("Agent", justify="center")
+    table.add_column("Script", justify="center")
+    table.add_column("Installed", justify="center")
     table.add_column("Description", style="dim")
 
     for c in checks:
+        installed = c["name"] in local_names
         table.add_row(
             c["name"],
             c["template"],
             str(c["items"]),
             str(c["triggers"]),
-            str(c["discovery_rules"]),
-            "[green]✓[/green]" if c["has_agent"] else "[dim]—[/dim]",
+            "[green]✓[/green]" if c["has_script"] else "[dim]—[/dim]",
+            "[green]✓[/green]" if installed else "[dim]—[/dim]",
             c["description"] or "—",
         )
 
     console.print()
     console.print(table)
     console.print(
-        f"\n[dim]{len(checks)} check(s) — use [bold]zbx check install <name> <host>[/bold] "
-        f"to deploy one.[/dim]\n"
+        f"\n[dim]{len(checks)} bundled check(s)  "
+        f"— [bold]zbx check install <name>[/bold] to copy + deploy[/dim]\n"
     )
 
 
@@ -133,11 +146,10 @@ def check_list(
 
 @app.command("info")
 def check_info(
-    name: Annotated[str, typer.Argument(help="Check name (folder name or partial match).")],
-    checks_dir: Annotated[Path, typer.Option("--checks-dir")] = _DEFAULT_CHECKS_DIR,
+    name: Annotated[str, typer.Argument(help="Check name (exact or partial).")],
 ) -> None:
-    """Show details for a specific check."""
-    folder = _resolve_check(name, checks_dir)
+    """Show full details for a bundled check."""
+    folder = _resolve_bundled(name)
     check_yaml = folder / "check.yaml"
 
     with open(check_yaml) as f:
@@ -147,15 +159,12 @@ def check_info(
     console.print()
     console.print(f"[bold cyan]{folder.name}[/bold cyan]")
     console.print(f"  Template : [bold]{tmpl.get('template', '—')}[/bold]")
-    if tmpl.get("name"):
-        console.print(f"  Name     : {tmpl['name']}")
     if tmpl.get("description"):
-        console.print(f"  Desc     : {tmpl['description'][:80]}")
-    console.print()
+        console.print(f"  Desc     : {tmpl['description'][:100]}")
 
     items = tmpl.get("items", [])
     if items:
-        console.print(f"  [bold]Items ({len(items)}):[/bold]")
+        console.print(f"\n  [bold]Items ({len(items)}):[/bold]")
         for it in items:
             console.print(f"    [dim]{it.get('key', '?')}[/dim]  {it.get('name', '')}")
 
@@ -164,9 +173,9 @@ def check_info(
         console.print(f"\n  [bold]Triggers ({len(triggers)}):[/bold]")
         for tr in triggers:
             sev = tr.get("severity", "average")
-            sev_color = {"disaster": "red", "high": "red", "average": "yellow",
-                         "warning": "yellow"}.get(sev, "dim")
-            console.print(f"    [[{sev_color}]{sev}[/{sev_color}]]  {tr.get('name', '?')}")
+            color = {"disaster": "red", "high": "red", "average": "yellow",
+                     "warning": "yellow"}.get(sev, "dim")
+            console.print(f"    [[{color}]{sev}[/{color}]]  {tr.get('name', '?')}")
 
     rules = tmpl.get("discovery_rules", [])
     if rules:
@@ -174,83 +183,88 @@ def check_info(
         for r in rules:
             console.print(f"    {r.get('name', '?')}  [dim]({r.get('key', '?')})[/dim]")
 
-    agent = tmpl.get("agent")
-    if agent:
-        scripts = agent.get("scripts", [])
-        ups = agent.get("userparameters", [])
-        console.print(f"\n  [bold]Agent deployment:[/bold]")
+    scripts_dir = folder / "scripts"
+    if scripts_dir.exists():
+        scripts = list(scripts_dir.iterdir())
+        console.print(f"\n  [bold]Scripts ({len(scripts)}):[/bold]")
         for s in scripts:
-            console.print(f"    script  {s.get('source', '?')}  →  {s.get('dest', '?')}")
-        for u in ups:
-            for p in u.get("parameters", []):
-                console.print(f"    param   [dim]{p.get('key', '?')}[/dim]")
-        console.print(
-            f"\n  Deploy with: [bold]zbx check install {folder.name} <host>[/bold]"
-        )
-    else:
-        console.print("\n  [dim](no agent block — uses built-in Zabbix agent keys)[/dim]")
+            console.print(f"    {s.name}")
 
-    console.print()
-
-    readme = folder / "README.md"
-    if readme.exists():
-        console.print(f"  [dim]README: {readme}[/dim]")
+    console.print(f"\n  Install: [bold]zbx check install {folder.name}[/bold]")
     console.print()
 
 
 # ---------------------------------------------------------------------------
-# zbx check install <name> <host>
+# zbx check install <name>
 # ---------------------------------------------------------------------------
 
 @app.command("install")
 def check_install(
-    name: Annotated[str, typer.Argument(help="Check name (folder name or partial match).")],
-    host: Annotated[Optional[str], typer.Argument(help="Hostname from inventory.yaml (required for agent deploy).")] = None,
-    checks_dir: Annotated[Path, typer.Option("--checks-dir")] = _DEFAULT_CHECKS_DIR,
-    inventory: Annotated[Path, typer.Option("--inventory", "-i")] = Path("inventory.yaml"),
+    name: Annotated[str, typer.Argument(help="Check name (exact or partial).")],
+    dest: Annotated[Path, typer.Option("--dest", "-d",
+        help="Destination directory (default: configs/checks/)")] = _DEFAULT_CHECKS_DIR,
+    apply: Annotated[bool, typer.Option("--apply/--no-apply",
+        help="Also apply the template to Zabbix (default: yes).")] = True,
+    dry_run: Annotated[bool, typer.Option("--dry-run", "-n")] = False,
     env_file: Annotated[Path, typer.Option("--env-file", "-e")] = Path(".env"),
     auto_approve: Annotated[bool, typer.Option("--auto-approve", "-y")] = False,
-    template_only: Annotated[bool, typer.Option("--template-only", help="Only apply template, skip agent deploy.")] = False,
-    agent_only: Annotated[bool, typer.Option("--agent-only", help="Only deploy agent, skip template apply.")] = False,
 ) -> None:
-    """Apply a check's template to Zabbix and deploy its agent script to a host.
+    """Copy a bundled check to your project and optionally apply it to Zabbix.
 
-    Combines:  zbx apply <check>/  +  zbx agent deploy <host> --from-check <check>/
+    Two steps:
+      1. Copy  configs/checks/<name>/  from the zbxctl package into your project
+      2. Run   zbx apply configs/checks/<name>/  (skip with --no-apply)
+
+    Example:
+      zbx check install postgresql
+      zbx check install redis --no-apply   # copy only, apply later
     """
-    folder = _resolve_check(name, checks_dir)
+    bundled = _resolve_bundled(name)
+    target = dest / bundled.name
 
-    # ---- Step 1: apply template ----
-    if not agent_only:
-        rprint(f"\n[bold]Step 1 — Apply template: [cyan]{folder.name}[/cyan][/bold]")
-        from zbx.commands.apply import apply_cmd  # noqa: PLC0415
-        import click  # noqa: PLC0415
-        ctx = typer.Context(typer.main.get_command(typer.Typer()))  # minimal ctx
-        try:
-            apply_cmd(
-                path=folder,
-                dry_run=False,
-                env_file=env_file,
-                auto_approve=auto_approve,
-            )
-        except SystemExit:
-            pass
+    # ── Step 1: copy files ────────────────────────────────────────────────
+    console.print()
+    if target.exists():
+        console.print(f"[yellow]![/yellow]  {target} already exists — skipping copy.")
+    else:
+        if dry_run:
+            console.print(f"[cyan](dry-run)[/cyan]  Would copy {bundled} → {target}")
+        else:
+            dest.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(bundled, target)
+            console.print(f"[green]✓[/green]  Copied [bold]{bundled.name}[/bold] → {target}")
 
-    # ---- Step 2: agent deploy ----
-    if template_only or host is None:
-        if not template_only and host is None:
-            rprint("\n[dim]No host specified — skipping agent deploy.[/dim]")
-            rprint(f"  To deploy the agent later:\n  [bold]zbx agent deploy <host> --from-check {folder}[/bold]\n")
+    # Show what was copied
+    check_yaml = (bundled if dry_run else target) / "check.yaml"
+    if check_yaml.exists():
+        with open(check_yaml) as f:
+            raw = yaml.safe_load(f)
+        tmpl = raw[0] if isinstance(raw, list) else raw
+        n_items    = len(tmpl.get("items", []))
+        n_triggers = len(tmpl.get("triggers", []))
+        console.print(
+            f"   template=[bold]{tmpl.get('template', bundled.name)}[/bold]  "
+            f"items={n_items}  triggers={n_triggers}"
+        )
+
+    if not apply:
+        console.print(f"\n[dim]Run [bold]zbx apply {target}[/bold] when ready.[/dim]\n")
         return
 
-    rprint(f"\n[bold]Step 2 — Deploy agent: [cyan]{host}[/cyan] ← {folder.name}[/bold]")
-    from zbx.commands.agent import agent_deploy_cmd  # noqa: PLC0415
+    # ── Step 2: apply to Zabbix ───────────────────────────────────────────
+    if dry_run:
+        console.print(f"\n[cyan](dry-run)[/cyan]  Would apply {target} to Zabbix.\n")
+        return
+
+    console.print(f"\n[bold]Applying template to Zabbix…[/bold]")
+    from zbx.commands.apply import apply_cmd  # noqa: PLC0415
     try:
-        agent_deploy_cmd(
-            hostname=host,
-            inventory=inventory,
+        apply_cmd(
+            path=target,
             dry_run=False,
+            env_file=env_file,
             auto_approve=auto_approve,
-            from_check=folder,
         )
     except SystemExit:
         pass
+

@@ -1,0 +1,109 @@
+# windows-agent check
+#
+# Monitors Windows hosts using built-in Zabbix agent keys (no custom script required).
+#
+# Deploy this template:
+#   zbx validate configs/checks/windows-agent/
+#   zbx plan    configs/checks/windows-agent/
+#   zbx apply   configs/checks/windows-agent/
+#
+# Then link to a host via inventory.yaml (templates: [windows-agent])
+
+template: windows-agent
+name: "windows-agent"
+description: "Windows host monitoring via Zabbix agent built-in keys"
+groups:
+  - Templates/Operating Systems
+
+items:
+  - name: CPU utilization
+    key: "system.cpu.util"
+    interval: 30s
+    value_type: float
+    units: "%"
+    description: "Overall CPU utilization in percent"
+    tags:
+      - tag: component
+        value: cpu
+
+  - name: Available memory
+    key: "vm.memory.size[available]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Available memory in bytes"
+    tags:
+      - tag: component
+        value: memory
+
+  - name: Total memory
+    key: "vm.memory.size[total]"
+    interval: 60s
+    value_type: unsigned
+    units: B
+    description: "Total physical memory in bytes"
+    tags:
+      - tag: component
+        value: memory
+
+  - name: Uptime
+    key: "system.uptime"
+    interval: 60s
+    value_type: unsigned
+    units: uptime
+    description: "System uptime in seconds"
+    tags:
+      - tag: component
+        value: system
+
+  - name: System hostname
+    key: "system.hostname"
+    interval: 60s
+    value_type: text
+    description: "System hostname as reported by the OS"
+    tags:
+      - tag: component
+        value: system
+
+  - name: OS version
+    key: "system.sw.os"
+    interval: 60s
+    value_type: text
+    description: "Operating system version string"
+    tags:
+      - tag: component
+        value: system
+
+  - name: CPU count
+    key: "system.cpu.num"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of logical CPUs"
+    tags:
+      - tag: component
+        value: cpu
+
+triggers:
+  - name: "High CPU utilization (> 90% for 5 min)"
+    expression: "avg(/windows-agent/system.cpu.util,5m)>90"
+    severity: high
+    description: "CPU utilization has been above 90% for 5 minutes."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: "Low available memory (< 10%)"
+    expression: "last(/windows-agent/vm.memory.size[available])/last(/windows-agent/vm.memory.size[total])*100<10"
+    severity: high
+    description: "Available memory is below 10% of total memory."
+    tags:
+      - tag: scope
+        value: performance
+
+  - name: "Host unavailable"
+    expression: "nodata(/windows-agent/system.uptime,5m)=1"
+    severity: disaster
+    description: "No data received from the host for 5 minutes. Host may be down."
+    tags:
+      - tag: scope
+        value: availability

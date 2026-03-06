@@ -1,0 +1,133 @@
+# apache-httpd check
+#
+# Monitors Apache HTTP Server via mod_status using the check_apache.py UserParameter script.
+# Deploy the script first:
+#   sudo cp scripts/check_apache.py /usr/local/zbx/scripts/
+#   sudo chmod +x /usr/local/zbx/scripts/check_apache.py
+#
+# Add to Zabbix agent config (/etc/zabbix/zabbix_agentd.conf):
+#   UserParameter=apache.stat[*],python3 /usr/local/zbx/scripts/check_apache.py $1
+#
+# Requires Apache mod_status enabled with:
+#   ExtendedStatus On
+#   <Location /server-status>
+#       SetHandler server-status
+#       Require local
+#   </Location>
+#
+# Deploy this template:
+#   zbx validate configs/checks/apache-httpd/
+#   zbx plan    configs/checks/apache-httpd/
+#   zbx apply   configs/checks/apache-httpd/
+#
+# Then link to a host via inventory.yaml (templates: [apache-httpd])
+
+template: apache-httpd
+name: "apache-httpd"
+description: "Apache HTTP Server monitoring via mod_status"
+groups:
+  - Templates/Applications
+
+items:
+  - name: Apache ping
+    key: "apache.stat[ping]"
+    interval: 60s
+    value_type: unsigned
+    units: ""
+    description: "1 if Apache responds to mod_status, 0 otherwise"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: Total accesses
+    key: "apache.stat[total_accesses]"
+    interval: 60s
+    value_type: unsigned
+    description: "Total number of accesses since server start"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: Total kbytes
+    key: "apache.stat[total_kbytes]"
+    interval: 60s
+    value_type: unsigned
+    units: KB
+    description: "Total kilobytes served since server start"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: Requests per second
+    key: "apache.stat[req_per_sec]"
+    interval: 60s
+    value_type: float
+    description: "Average requests per second since server start"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: Bytes per second
+    key: "apache.stat[bytes_per_sec]"
+    interval: 60s
+    value_type: float
+    units: B/s
+    description: "Average bytes transferred per second since server start"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: Busy workers
+    key: "apache.stat[busy_workers]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of worker threads currently handling requests"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: Idle workers
+    key: "apache.stat[idle_workers]"
+    interval: 60s
+    value_type: unsigned
+    description: "Number of worker threads currently idle"
+    tags:
+      - tag: component
+        value: apache
+
+  - name: "Uptime (seconds)"
+    key: "apache.stat[uptime]"
+    interval: 60s
+    value_type: unsigned
+    units: uptime
+    description: "Apache server uptime in seconds"
+    tags:
+      - tag: component
+        value: apache
+
+triggers:
+  - name: "Apache is unreachable"
+    expression: "last(/apache-httpd/apache.stat[ping])=0"
+    severity: high
+    description: "Apache mod_status is not responding. Check the service and configuration."
+    tags:
+      - tag: scope
+        value: availability
+
+  - name: "No idle workers (saturation)"
+    expression: "last(/apache-httpd/apache.stat[idle_workers])=0"
+    severity: average
+    description: "All Apache workers are busy. The server may be saturated."
+    tags:
+      - tag: scope
+        value: performance
+
+agent:
+  scripts:
+    - source: scripts/check_apache.py
+      dest: /usr/local/zbx/scripts/check_apache.py
+  userparameters:
+    - name: zbx-apache-httpd
+      parameters:
+        - key: "apache.stat[*]"
+          command: "python3 /usr/local/zbx/scripts/check_apache.py $1"
