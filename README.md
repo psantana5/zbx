@@ -422,16 +422,24 @@ described in [CONTRIBUTING.md](CONTRIBUTING.md).
 Shows connection info and a summary of the Zabbix server state.
 
 ```bash
-zbx status
+zbx status                         # one-shot snapshot
+zbx status --watch                 # live-refreshing dashboard (Ctrl+C to stop)
+zbx status --watch --interval 10   # refresh every 10 seconds
 ```
 
 ```
-zbx version   : 0.4.0
-Zabbix URL    : http://zabbix.example.com/zabbix
-API version   : 7.4.7
-Auth user     : Admin
-Templates     : 210
-Hosts         : 42
+zbx version      0.6.0
+Zabbix server    http://zabbix.example.com/zabbix
+API version      7.4.7
+Authenticated as Admin
+Templates        210
+Hosts            42 total  (40 enabled)
+Active problems  3
+
+Recent problems
+  • high     High CPU on web-01
+  • average  Disk full on db-02
+  • warning  Service nginx down on proxy-01
 ```
 
 ### zbx check
@@ -441,7 +449,10 @@ Browse and deploy bundled monitoring checks.
 ```bash
 zbx check list                        # table of all checks with item/trigger counts
 zbx check info postgresql             # full details: items, triggers, agent deploy info
-zbx check install postgresql myhost   # apply template + deploy agent in one command
+zbx check install postgresql          # copy check to configs/checks/ then apply to Zabbix
+zbx check update postgresql           # refresh an installed check from latest package version
+zbx check update                      # update all installed checks at once
+zbx check update --dry-run            # preview what would change without writing files
 ```
 
 `zbx check install` is a shortcut for:

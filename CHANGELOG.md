@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.0] — 2026-03-06
+
+### Added
+- `zbx check update [name]` — refresh installed check(s) from the bundled package version. Shows file-level diff (new/changed files) before writing. `--dry-run` flag to preview without modifying files. Useful after `pip install --upgrade zbxctl` to sync check YAML to latest.
+- `zbx status --watch` — live-refreshing dashboard using `rich.Live`. Displays connection info, resource counts, active problem count and last 5 problems. `--interval` flag (default: 5 s).
+- `zbx status` now shows **active problems** count and recent problem list.
+- `zabbix-compat.yml` CI workflow — weekly matrix test against Zabbix 6.4 and 7.0 using `zabbix-appliance` Docker images. Uploads JUnit XML artifacts.
+
+### Documentation
+- README: `zbx status` example updated with `--watch` flag and problem output.
+- README: `zbx check` section updated with `zbx check update` examples.
+
+---
+
 ## [0.5.1] — 2026-03-06
 
 ### Fixed
