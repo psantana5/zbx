@@ -288,9 +288,8 @@ class ZabbixClient:
         })
         # Enrich discovery rules with their filter conditions and existing prototypes
         if tmpl.get("discoveryRules"):
-            rule_ids = [r["itemid"] for r in tmpl["discoveryRules"]]
             rules_with_filter = self._call("discoveryrule.get", {
-                "itemids": rule_ids,
+                "templateids": [tmpl["templateid"]],
                 "output": ["itemid"],
                 "selectFilter": "extend",
                 "selectItems": ["itemid", "name", "key_"],
@@ -570,11 +569,13 @@ class ZabbixClient:
         # Fetch filters, type, and master_itemid separately
         # (selectFilter not valid in selectDiscoveryRules output;
         #  'type' and 'master_itemid' may also be absent from template.get output)
-        rule_ids = [r["itemid"] for r in tmpl.get("discoveryRules", [])]
-        if rule_ids:
+        if tmpl.get("discoveryRules"):
+            # Query by templateids (not itemids) — itemids may be silently filtered
+            # out on older Zabbix versions when the items belong to a template rather
+            # than a host.
             rules_with_filter = self._call("discoveryrule.get", {
-                "itemids": rule_ids,
-                "output": ["itemid", "type", "master_itemid"],
+                "templateids": [templateid],
+                "output": "extend",   # "extend" guarantees type+master_itemid on all versions
                 "selectFilter": "extend",
             })
             enriched_by_id = {r["itemid"]: r for r in rules_with_filter}
@@ -582,10 +583,11 @@ class ZabbixClient:
                 enriched = enriched_by_id.get(rule["itemid"], {})
                 rule["filter"] = enriched.get("filter", {})
                 # Overwrite type and master_itemid with the authoritative values
-                if "type" in enriched:
+                if enriched.get("type") is not None:
                     rule["type"] = enriched["type"]
-                if "master_itemid" in enriched:
-                    rule["master_itemid"] = enriched["master_itemid"]
+                master = enriched.get("master_itemid")
+                if master and master != "0":
+                    rule["master_itemid"] = master
         return tmpl
 
     def find_templates(self, search: str) -> list[dict[str, Any]]:
