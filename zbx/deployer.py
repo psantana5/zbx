@@ -599,9 +599,3 @@ class Deployer:
             if rc.resource_id:
                 self._client.delete_template_macro(rc.resource_id)
                 logger.info("  - macro %s", rc.name)
-        rule = next((r for r in template.discovery_rules if r.key == key), None)
-        if rule is None:
-            raise KeyError(
-                f"Discovery rule with key '{key}' not found in template '{template.template}'"
-            )
-        return rule
