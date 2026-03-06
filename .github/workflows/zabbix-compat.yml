@@ -111,8 +111,7 @@ jobs:
           ZBX_PASSWORD: zabbix
           ZBX_VERIFY_SSL: "false"
         run: |
-          python -m pytest tests/test_e2e.py -v --tb=long \
-            -s \
+          python -m pytest tests/test_e2e.py -v --tb=short \
             --junit-xml=test-results-zabbix-${{ matrix.zabbix_version }}.xml
 
       - name: Show container logs on failure

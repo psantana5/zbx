@@ -537,7 +537,9 @@ class ZabbixClient:
             "output": "extend",
             "selectGroups": ["groupid", "name"],
             "selectItems": "extend",
-            "selectDiscoveryRules": "extend",
+            # NOTE: selectDiscoveryRules is intentionally omitted here —
+            # on Zabbix 6.4/7.0 template.get returns an empty list for discoveryRules
+            # even when they exist. We always fetch them via discoveryrule.get below.
         })
         if not results:
             return None
@@ -562,32 +564,17 @@ class ZabbixClient:
             "expandExpression": True,
             "inherited": False,
         })
-        # Enrich each discovery rule with item prototypes, trigger prototypes, and filter
-        for rule in tmpl.get("discoveryRules", []):
+        # Fetch ALL discovery rules via discoveryrule.get — this is authoritative on
+        # all Zabbix versions (6.4, 7.0, 7.4+) unlike template.get+selectDiscoveryRules.
+        raw_rules: list[dict[str, Any]] = self._call("discoveryrule.get", {  # type: ignore[assignment]
+            "templateids": [templateid],
+            "output": "extend",
+            "selectFilter": "extend",
+        })
+        tmpl["discoveryRules"] = raw_rules
+        for rule in tmpl["discoveryRules"]:
             rule["itemPrototypes"] = self.get_item_prototypes(rule["itemid"])
             rule["triggerPrototypes"] = self.get_trigger_prototypes(rule["itemid"])
-        # Fetch filters, type, and master_itemid separately
-        # (selectFilter not valid in selectDiscoveryRules output;
-        #  'type' and 'master_itemid' may also be absent from template.get output)
-        if tmpl.get("discoveryRules"):
-            # Query by templateids (not itemids) — itemids may be silently filtered
-            # out on older Zabbix versions when the items belong to a template rather
-            # than a host.
-            rules_with_filter = self._call("discoveryrule.get", {
-                "templateids": [templateid],
-                "output": "extend",   # "extend" guarantees type+master_itemid on all versions
-                "selectFilter": "extend",
-            })
-            enriched_by_id = {r["itemid"]: r for r in rules_with_filter}
-            for rule in tmpl.get("discoveryRules", []):
-                enriched = enriched_by_id.get(rule["itemid"], {})
-                rule["filter"] = enriched.get("filter", {})
-                # Overwrite type and master_itemid with the authoritative values
-                if enriched.get("type") is not None:
-                    rule["type"] = enriched["type"]
-                master = enriched.get("master_itemid")
-                if master and master != "0":
-                    rule["master_itemid"] = master
         return tmpl
 
     def find_templates(self, search: str) -> list[dict[str, Any]]:
