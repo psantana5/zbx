@@ -10,6 +10,13 @@
 
 set -euo pipefail
 
+# Ensure zbx is on PATH (handles pip install --user and editable installs)
+export PATH="$HOME/.local/bin:$PATH"
+# If running from an editable install in the project root, also try that
+if [ -f "$(pwd)/zbx/cli.py" ]; then
+  export PATH="$(pwd):$PATH"
+fi
+
 : "${ZABBIX_URL:=http://localhost:8080/zabbix}"
 : "${ZABBIX_USER:=Admin}"
 : "${ZABBIX_PASSWORD:=zabbix}"
