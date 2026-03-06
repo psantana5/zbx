@@ -567,17 +567,25 @@ class ZabbixClient:
         for rule in tmpl.get("discoveryRules", []):
             rule["itemPrototypes"] = self.get_item_prototypes(rule["itemid"])
             rule["triggerPrototypes"] = self.get_trigger_prototypes(rule["itemid"])
-        # Fetch filters separately (selectFilter not valid in selectDiscoveryRules output)
+        # Fetch filters, type, and master_itemid separately
+        # (selectFilter not valid in selectDiscoveryRules output;
+        #  'type' and 'master_itemid' may also be absent from template.get output)
         rule_ids = [r["itemid"] for r in tmpl.get("discoveryRules", [])]
         if rule_ids:
             rules_with_filter = self._call("discoveryrule.get", {
                 "itemids": rule_ids,
-                "output": ["itemid"],
+                "output": ["itemid", "type", "master_itemid"],
                 "selectFilter": "extend",
             })
-            filter_by_id = {r["itemid"]: r.get("filter", {}) for r in rules_with_filter}
+            enriched_by_id = {r["itemid"]: r for r in rules_with_filter}
             for rule in tmpl.get("discoveryRules", []):
-                rule["filter"] = filter_by_id.get(rule["itemid"], {})
+                enriched = enriched_by_id.get(rule["itemid"], {})
+                rule["filter"] = enriched.get("filter", {})
+                # Overwrite type and master_itemid with the authoritative values
+                if "type" in enriched:
+                    rule["type"] = enriched["type"]
+                if "master_itemid" in enriched:
+                    rule["master_itemid"] = enriched["master_itemid"]
         return tmpl
 
     def find_templates(self, search: str) -> list[dict[str, Any]]:
