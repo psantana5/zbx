@@ -311,3 +311,66 @@ class TestExtraItemInZabbix:
         by_key = {r.key: r for r in diff.resource_changes if r.resource_type == "item"}
         assert by_key["system.cpu.util"].type == ChangeType.UNCHANGED
         assert by_key["old.item.key"].type == ChangeType.REMOVE
+
+
+# ---------------------------------------------------------------------------
+# Macro diff tests
+# ---------------------------------------------------------------------------
+
+class TestMacroDiff:
+    """Unit tests for template user macro diffing."""
+
+    def _template_with_macros(self, macros):
+        from zbx.models import HostMacro
+        t = _make_template()
+        t.macros = [HostMacro(**m) for m in macros]
+        return t
+
+    def _current_with_macros(self, macros):
+        c = _make_current()
+        c["macros"] = macros
+        return c
+
+    def test_new_macro_is_add(self):
+        desired = self._template_with_macros([{"macro": "{$CPU.CRIT}", "value": "80"}])
+        current = self._current_with_macros([])
+        diff = engine.compute_diff(desired, current)
+        m = next(r for r in diff.resource_changes if r.resource_type == "macro")
+        assert m.type == ChangeType.ADD
+        assert m.key == "{$CPU.CRIT}"
+
+    def test_identical_macro_is_unchanged(self):
+        desired = self._template_with_macros([{"macro": "{$CPU.CRIT}", "value": "80"}])
+        current = self._current_with_macros([
+            {"hostmacroid": "1", "macro": "{$CPU.CRIT}", "value": "80", "description": ""}
+        ])
+        diff = engine.compute_diff(desired, current)
+        m = next(r for r in diff.resource_changes if r.resource_type == "macro")
+        assert m.type == ChangeType.UNCHANGED
+
+    def test_changed_value_is_modify(self):
+        desired = self._template_with_macros([{"macro": "{$CPU.CRIT}", "value": "90"}])
+        current = self._current_with_macros([
+            {"hostmacroid": "1", "macro": "{$CPU.CRIT}", "value": "80", "description": ""}
+        ])
+        diff = engine.compute_diff(desired, current)
+        m = next(r for r in diff.resource_changes if r.resource_type == "macro")
+        assert m.type == ChangeType.MODIFY
+        assert any(fc.field == "value" for fc in m.field_changes)
+
+    def test_removed_macro_is_remove(self):
+        desired = self._template_with_macros([])
+        current = self._current_with_macros([
+            {"hostmacroid": "1", "macro": "{$CPU.CRIT}", "value": "80", "description": ""}
+        ])
+        diff = engine.compute_diff(desired, current)
+        m = next(r for r in diff.resource_changes if r.resource_type == "macro")
+        assert m.type == ChangeType.REMOVE
+        assert m.resource_id == "1"
+
+    def test_no_macros_no_changes(self):
+        desired = self._template_with_macros([])
+        current = self._current_with_macros([])
+        diff = engine.compute_diff(desired, current)
+        macro_changes = [r for r in diff.resource_changes if r.resource_type == "macro"]
+        assert macro_changes == []

@@ -8,6 +8,7 @@ from typing import Any
 
 from zbx.models import (
     DiscoveryRule,
+    HostMacro,
     Item,
     ItemType,
     ItemValueType,
@@ -108,6 +109,9 @@ class DiffEngine:
             desired.discovery_rules, current.get("discoveryRules", [])
         )
         resource_changes.extend(rule_changes)
+        resource_changes.extend(
+            self._diff_macros(desired.macros, current.get("macros", []))
+        )
 
         has_any_change = bool(field_changes) or any(
             r.type != ChangeType.UNCHANGED for r in resource_changes
@@ -388,6 +392,48 @@ class DiffEngine:
                     )
                 )
         return changes, warnings
+
+    def _diff_macros(
+        self,
+        desired_macros: list[HostMacro],
+        current_macros: list[dict[str, Any]],
+    ) -> list[ResourceChange]:
+        current_by_macro = {m["macro"]: m for m in current_macros}
+        desired_keys = {m.macro for m in desired_macros}
+        changes: list[ResourceChange] = []
+
+        for macro in desired_macros:
+            cur = current_by_macro.get(macro.macro)
+            if cur is None:
+                changes.append(ResourceChange(
+                    type=ChangeType.ADD,
+                    resource_type="macro",
+                    name=macro.macro,
+                    key=macro.macro,
+                ))
+            else:
+                field_changes: list[FieldChange] = []
+                self._chk(field_changes, "value", cur.get("value", ""), macro.value)
+                self._chk(field_changes, "description", cur.get("description", ""), macro.description)
+                changes.append(ResourceChange(
+                    type=ChangeType.MODIFY if field_changes else ChangeType.UNCHANGED,
+                    resource_type="macro",
+                    name=macro.macro,
+                    key=macro.macro,
+                    resource_id=str(cur["hostmacroid"]),
+                    field_changes=field_changes,
+                ))
+
+        for macro_name, cur in current_by_macro.items():
+            if macro_name not in desired_keys:
+                changes.append(ResourceChange(
+                    type=ChangeType.REMOVE,
+                    resource_type="macro",
+                    name=macro_name,
+                    key=macro_name,
+                    resource_id=str(cur["hostmacroid"]),
+                ))
+        return changes
 
     # ------------------------------------------------------------------
     # Helpers

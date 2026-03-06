@@ -316,3 +316,35 @@ class TestAgentConfig:
         assert a.scripts == []
         assert a.userparameters == []
         assert a.test_keys == []
+
+
+# ---------------------------------------------------------------------------
+# Template macro support
+# ---------------------------------------------------------------------------
+
+class TestTemplateMacros:
+    def test_template_accepts_macros(self):
+        from zbx.models import HostMacro, Template
+        t = Template(
+            template="test",
+            macros=[
+                HostMacro(macro="{$CPU.CRIT}", value="80", description="CPU threshold"),
+                HostMacro(macro="{$MEM.CRIT}", value="90"),
+            ],
+        )
+        assert len(t.macros) == 2
+        assert t.macros[0].macro == "{$CPU.CRIT}"
+        assert t.macros[0].value == "80"
+        assert t.macros[1].description == ""
+
+    def test_template_default_no_macros(self):
+        from zbx.models import Template
+        t = Template(template="test")
+        assert t.macros == []
+
+    def test_macro_invalid_format_rejected(self):
+        import pytest
+        from pydantic import ValidationError
+        from zbx.models import HostMacro
+        with pytest.raises(ValidationError):
+            HostMacro(macro="NOT_A_MACRO", value="80")

@@ -16,6 +16,7 @@ from zbx import formatter
 from zbx.config_loader import ConfigLoader
 from zbx.models import (
     DiscoveryRule,
+    HostMacro,
     Item,
     ItemPrototype,
     ItemType,
@@ -285,11 +286,21 @@ def _raw_to_template(raw: dict) -> Template:  # type: ignore[type-arg]
 
     groups = [g["name"] for g in raw.get("groups", [{"name": "Templates"}])]
 
+    macros = [
+        HostMacro(
+            macro=m["macro"],
+            value=m.get("value", ""),
+            description=m.get("description", ""),
+        )
+        for m in raw.get("macros", [])
+    ]
+
     return Template(
         template=raw["host"],
         name=raw.get("name") if raw.get("name") != raw["host"] else None,
         description=raw.get("description", ""),
         groups=groups,
+        macros=macros,
         items=items,
         triggers=triggers,
         discovery_rules=discovery_rules,
@@ -385,6 +396,11 @@ def _template_to_yaml(template: Template) -> str:
     if template.description:
         doc["description"] = template.description
     doc["groups"] = template.groups
+    if template.macros:
+        doc["macros"] = [
+            {"macro": m.macro, "value": m.value, **({"description": m.description} if m.description else {})}
+            for m in template.macros
+        ]
     if template.items:
         doc["items"] = [_item_dict(i) for i in template.items]
     if template.triggers:

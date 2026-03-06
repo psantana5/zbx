@@ -213,6 +213,10 @@ class Deployer:
             self._create_trigger(trigger)
         for rule in template.discovery_rules:
             self._create_discovery_rule(templateid, rule, item_key_to_id)
+        for macro in template.macros:
+            self._client.create_template_macro(
+                templateid, macro.macro, macro.value, macro.description
+            )
 
     def _update_template(self, template: Template, diff: TemplateDiff) -> None:
         assert diff.template_id is not None
@@ -235,6 +239,8 @@ class Deployer:
                 self._handle_trigger_change(rc, template)
             elif rc.resource_type == "discovery_rule":
                 self._handle_discovery_rule_change(rc, template, templateid)
+            elif rc.resource_type == "macro":
+                self._handle_macro_change(rc, template, templateid)
 
     # ------------------------------------------------------------------
     # Item operations
@@ -561,6 +567,38 @@ class Deployer:
 
     @staticmethod
     def _find_rule(template: Template, key: str | None) -> DiscoveryRule:
+        rule = next((r for r in template.discovery_rules if r.key == key), None)
+        if rule is None:
+            raise KeyError(
+                f"Discovery rule with key '{key}' not found in template '{template.template}'"
+            )
+        return rule
+
+    # ------------------------------------------------------------------
+    # Macro operations
+    # ------------------------------------------------------------------
+
+    def _handle_macro_change(
+        self, rc: Any, template: Template, templateid: str
+    ) -> None:
+        if rc.type == ChangeType.ADD:
+            macro = next((m for m in template.macros if m.macro == rc.key), None)
+            if macro:
+                self._client.create_template_macro(
+                    templateid, macro.macro, macro.value, macro.description
+                )
+                logger.info("  + macro %s", macro.macro)
+        elif rc.type == ChangeType.MODIFY:
+            macro = next((m for m in template.macros if m.macro == rc.key), None)
+            if macro and rc.resource_id:
+                self._client.update_template_macro(
+                    rc.resource_id, macro.value, macro.description
+                )
+                logger.info("  ~ macro %s", macro.macro)
+        elif rc.type == ChangeType.REMOVE:
+            if rc.resource_id:
+                self._client.delete_template_macro(rc.resource_id)
+                logger.info("  - macro %s", rc.name)
         rule = next((r for r in template.discovery_rules if r.key == key), None)
         if rule is None:
             raise KeyError(

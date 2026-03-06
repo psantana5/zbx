@@ -346,6 +346,7 @@ class Template(BaseModel):
     name: Optional[str] = None  # visible display name (defaults to template)
     description: str = ""
     groups: list[str] = Field(default_factory=lambda: ["Templates"])
+    macros: list["HostMacro"] = Field(default_factory=list)  # user macros: {$VAR}
     items: list[Item] = Field(default_factory=list)
     triggers: list[Trigger] = Field(default_factory=list)
     discovery_rules: list[DiscoveryRule] = Field(default_factory=list)

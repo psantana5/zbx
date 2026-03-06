@@ -261,6 +261,7 @@ class ZabbixClient:
                 "itemid", "name", "key_", "delay", "type",
                 "value_type", "units", "description", "status", "history", "trends",
             ],
+            "selectMacros": ["hostmacroid", "macro", "value", "description"],
             # NOTE: selectDiscoveryRules intentionally omitted — returns empty on 6.4/7.0.
             # Discovery rules are fetched via discoveryrule.get below.
         })
@@ -319,6 +320,33 @@ class ZabbixClient:
 
     def update_template(self, templateid: str, **kwargs: Any) -> None:
         self._call("template.update", {"templateid": templateid, **kwargs})
+
+    # ------------------------------------------------------------------
+    # Template user macros
+    # ------------------------------------------------------------------
+
+    def create_template_macro(
+        self, templateid: str, macro: str, value: str, description: str = ""
+    ) -> str:
+        result = self._call("usermacro.create", {
+            "hostid": templateid,
+            "macro": macro,
+            "value": value,
+            "description": description,
+        })
+        return str(result["hostmacroids"][0])
+
+    def update_template_macro(
+        self, hostmacroid: str, value: str, description: str = ""
+    ) -> None:
+        self._call("usermacro.update", {
+            "hostmacroid": hostmacroid,
+            "value": value,
+            "description": description,
+        })
+
+    def delete_template_macro(self, hostmacroid: str) -> None:
+        self._call("usermacro.delete", [hostmacroid])
 
     # ------------------------------------------------------------------
     # Hosts (linking templates + macros)
@@ -534,6 +562,7 @@ class ZabbixClient:
             "output": "extend",
             "selectGroups": ["groupid", "name"],
             "selectItems": "extend",
+            "selectMacros": ["hostmacroid", "macro", "value", "description"],
             # NOTE: selectDiscoveryRules is intentionally omitted here —
             # on Zabbix 6.4/7.0 template.get returns an empty list for discoveryRules
             # even when they exist. We always fetch them via discoveryrule.get below.
