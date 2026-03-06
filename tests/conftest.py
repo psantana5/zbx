@@ -6,6 +6,7 @@ cleaned up automatically in fixture teardown.
 """
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 
@@ -23,8 +24,44 @@ ENV_FILE = REPO_ROOT / ".env"
 
 
 # ---------------------------------------------------------------------------
-# Zabbix client fixture (session-scoped – login once per session)
+# Skip entire session if Zabbix is not reachable
 # ---------------------------------------------------------------------------
+
+def _zabbix_reachable() -> bool:
+    """Return True if the Zabbix API responds (used to skip e2e tests in CI)."""
+    import urllib.request  # noqa: PLC0415
+    import urllib.error    # noqa: PLC0415
+    import json            # noqa: PLC0415
+
+    # Allow env-var override (set by the compat CI workflow)
+    url = os.environ.get("ZBX_URL", "")
+    if not url:
+        try:
+            cfg = ConfigLoader()
+            settings = cfg.load_settings(ENV_FILE)
+            url = settings.url
+        except Exception:
+            return False
+
+    endpoint = url.rstrip("/") + "/api_jsonrpc.php"
+    payload = json.dumps({"jsonrpc": "2.0", "method": "apiinfo.version", "params": [], "id": 1}).encode()
+    try:
+        req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return "result" in json.loads(r.read())
+    except Exception:
+        return False
+
+
+_ZABBIX_AVAILABLE = _zabbix_reachable()
+
+# Applied automatically to test_e2e.py — skip everything if Zabbix is down
+zabbix_required = pytest.mark.skipif(
+    not _ZABBIX_AVAILABLE,
+    reason="Zabbix API not reachable — set ZBX_URL / ZBX_USER / ZBX_PASSWORD or start Zabbix",
+)
+
+
 @pytest.fixture(scope="session")
 def settings():
     cfg = ConfigLoader()

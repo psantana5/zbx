@@ -19,26 +19,13 @@ jobs:
       matrix:
         include:
           - zabbix_version: "6.4"
-            zabbix_image: "zabbix/zabbix-appliance:ubuntu-6.4-latest"
+            zabbix_server_image: "zabbix/zabbix-server-pgsql:ubuntu-6.4-latest"
+            zabbix_web_image: "zabbix/zabbix-web-nginx-pgsql:ubuntu-6.4-latest"
             python_version: "3.11"
           - zabbix_version: "7.0"
-            zabbix_image: "zabbix/zabbix-appliance:ubuntu-7.0-latest"
+            zabbix_server_image: "zabbix/zabbix-server-pgsql:ubuntu-7.0-latest"
+            zabbix_web_image: "zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest"
             python_version: "3.12"
-
-    services:
-      zabbix:
-        image: ${{ matrix.zabbix_image }}
-        ports:
-          - 80:80
-          - 10051:10051
-        env:
-          DB_SERVER_HOST: 127.0.0.1
-        options: >-
-          --health-cmd "curl -sf http://localhost/api_jsonrpc.php -d '{\"jsonrpc\":\"2.0\",\"method\":\"apiinfo.version\",\"params\":[],\"id\":1}' -H 'Content-Type: application/json' | grep -q result"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 20
-          --health-start-period 60s
 
     steps:
       - uses: actions/checkout@v4
@@ -51,30 +38,85 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
-      - name: Wait for Zabbix to be ready
+      - name: Start Zabbix ${{ matrix.zabbix_version }} stack
+        env:
+          ZABBIX_SERVER_IMAGE: ${{ matrix.zabbix_server_image }}
+          ZABBIX_WEB_IMAGE: ${{ matrix.zabbix_web_image }}
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost/api_jsonrpc.php \
+          cat > docker-compose.compat.yml << EOF
+          services:
+            postgres:
+              image: postgres:16-alpine
+              environment:
+                POSTGRES_DB: zabbix
+                POSTGRES_USER: zabbix
+                POSTGRES_PASSWORD: zabbix_pass
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U zabbix"]
+                interval: 5s
+                timeout: 5s
+                retries: 10
+
+            zabbix-server:
+              image: ${ZABBIX_SERVER_IMAGE}
+              environment:
+                DB_SERVER_HOST: postgres
+                POSTGRES_DB: zabbix
+                POSTGRES_USER: zabbix
+                POSTGRES_PASSWORD: zabbix_pass
+              depends_on:
+                postgres:
+                  condition: service_healthy
+
+            zabbix-web:
+              image: ${ZABBIX_WEB_IMAGE}
+              ports:
+                - "8080:8080"
+              environment:
+                DB_SERVER_HOST: postgres
+                POSTGRES_DB: zabbix
+                POSTGRES_USER: zabbix
+                POSTGRES_PASSWORD: zabbix_pass
+                ZBX_SERVER_HOST: zabbix-server
+                PHP_TZ: UTC
+              depends_on:
+                - zabbix-server
+          EOF
+          docker compose -f docker-compose.compat.yml up -d
+
+      - name: Wait for Zabbix API
+        run: |
+          echo "Waiting for Zabbix ${{ matrix.zabbix_version }} API..."
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8080/api_jsonrpc.php \
               -H 'Content-Type: application/json' \
               -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":[],"id":1}' \
               | grep -q '"result"'; then
-              echo "Zabbix ${{ matrix.zabbix_version }} API is ready"
+              echo "Zabbix ${{ matrix.zabbix_version }} API ready"
               break
             fi
-            echo "Attempt $i — waiting..."
+            echo "  attempt $i/40 — waiting 10s..."
             sleep 10
+            if [ $i -eq 40 ]; then
+              echo "Timed out waiting for Zabbix"
+              docker compose -f docker-compose.compat.yml logs
+              exit 1
+            fi
           done
 
       - name: Run e2e tests against Zabbix ${{ matrix.zabbix_version }}
         env:
-          ZBX_URL: http://localhost/zabbix
+          ZBX_URL: http://localhost:8080
           ZBX_USER: Admin
           ZBX_PASSWORD: zabbix
           ZBX_VERIFY_SSL: "false"
         run: |
           python -m pytest tests/test_e2e.py -v --tb=short \
-            -m "not skip_compat" \
             --junit-xml=test-results-zabbix-${{ matrix.zabbix_version }}.xml
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.compat.yml logs
 
       - name: Upload test results
         if: always()
@@ -82,3 +124,7 @@ jobs:
         with:
           name: test-results-zabbix-${{ matrix.zabbix_version }}-py${{ matrix.python_version }}
           path: test-results-zabbix-${{ matrix.zabbix_version }}.xml
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f docker-compose.compat.yml down -v

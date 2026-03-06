@@ -20,7 +20,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tests.conftest import minimal_template, rich_template
+from tests.conftest import minimal_template, rich_template, zabbix_required
+
+pytestmark = zabbix_required  # skip all tests if Zabbix is not reachable
 
 REPO_ROOT = Path(__file__).parent.parent
 ZBX = [sys.executable, "-m", "zbx.cli"] if False else ["zbx"]
