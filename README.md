@@ -111,7 +111,17 @@ ZBX_URL=http://zabbix.example.com/zabbix
 ZBX_USER=Admin
 ZBX_PASSWORD=secret
 ZBX_VERIFY_SSL=true
+ZBX_TIMEOUT=30        # API request timeout in seconds (default: 30)
 ```
+
+Additional optional env vars:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZBX_TIMEOUT` | `30` | Zabbix API request timeout (seconds) |
+| `ZBX_SSH_TIMEOUT` | `30` | SSH connect timeout for agent deployment (seconds) |
+| `ZBX_INIT_TIMEOUT` | `10` | `zbx init` connection test timeout (seconds) |
+| `ZBX_PROFILE` | — | Active named profile (see Multi-environment profiles) |
 
 Or export the variables directly (useful in CI/CD):
 
@@ -455,8 +465,8 @@ hosts:
       scripts:
         - source: scripts/check_nginx.sh
           dest: /usr/local/scripts/zabbix/check_nginx.sh
-          owner: zabbix
-          group: zabbix
+          owner: zabbix   # OS user owning the script (default: zabbix)
+          group: zabbix   # OS group owning the script (default: zabbix)
           mode: "0755"
       userparameters:
         - name: nginx
@@ -742,6 +752,26 @@ zbx check info mysql                  # items, triggers, agent details
 zbx check install mysql db-server-01  # apply + deploy in one command
 ```
 
+**Customising check macros**
+
+Each check ships with sensible macro defaults. Override them in your
+`inventory.yaml` host block to adapt without editing the check YAML:
+
+```yaml
+# inventory.yaml
+hosts:
+  - name: app-server-01
+    ip: 10.0.1.10
+    templates:
+      - jvm-jolokia
+      - ssl-cert
+    macros:
+      - macro: "{$JOLOKIA_PORT}"
+        value: "9778"               # non-default JMX port
+      - macro: "{$SSL_TEST_HOST}"
+        value: "app-server-01:8443" # HTTPS on a non-standard port
+```
+
 **Deploy a check manually (step-by-step):**
 
 ```bash
@@ -760,6 +790,20 @@ zbx agent test myhost --from-check configs/checks/postgresql/
 
 Scripts are installed to `/usr/local/zbx/scripts/` and UserParameters are
 written to `/etc/zabbix/zabbix_agentd.d/zbx-<check>.conf`.
+
+Script monitoring scripts also support environment variable overrides for
+non-default service endpoints (useful on hosts with multiple instances):
+
+| Script | Env var | Default |
+|--------|---------|---------|
+| `check_apache.py` | `APACHE_STATUS_URL` | `http://localhost/server-status?auto` |
+| `check_apache.py` | `APACHE_TIMEOUT` | `5` |
+| `check_mysql.py` | `MYSQL_HOST` / `MYSQL_PORT` | `127.0.0.1` / `3306` |
+| `check_rabbitmq.py` | `RABBITMQ_HOST` / `RABBITMQ_PORT` | `127.0.0.1` / `15672` |
+| `check_elasticsearch.py` | `ES_HOST` / `ES_PORT` | `127.0.0.1` / `9200` |
+| `check_nginx.py` | `NGINX_STATUS_URL` | `http://localhost/nginx_status` |
+| `check_haproxy.py` | `HAPROXY_STATS_URL` | `http://127.0.0.1:8404/stats;csv` |
+| `check_jvm_jolokia.py` | `JOLOKIA_HOST` / `JOLOKIA_PORT` | `localhost` / `8778` |
 
 ---
 
