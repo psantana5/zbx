@@ -19,11 +19,12 @@ Requires Apache mod_status with ExtendedStatus On accessible at:
 """
 
 import sys
+import os
 import urllib.request
 import urllib.error
 
-STATUS_URL = "http://localhost/server-status?auto"
-TIMEOUT = 5
+STATUS_URL = os.environ.get("APACHE_STATUS_URL", "http://localhost/server-status?auto")
+TIMEOUT = int(os.environ.get("APACHE_TIMEOUT", "5"))
 
 KEY_MAP = {
     "total_accesses": "Total Accesses",

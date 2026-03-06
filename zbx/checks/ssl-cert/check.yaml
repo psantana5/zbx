@@ -29,6 +29,11 @@ groups:
   - Templates
   - Templates/Network
 
+macros:
+  - macro: "{$SSL_TEST_HOST}"
+    value: "example.com:443"
+    description: "Host:port used for agent test_keys validation"
+
 items:
   - name: "SSL certificate days remaining: {HOST.NAME}"
     key: "ssl.cert[days_remaining,{HOST.NAME}:443]"
@@ -87,4 +92,4 @@ agent:
         - key: "ssl.cert[*]"
           command: "/usr/local/zbx/scripts/check_ssl.py $1"
   test_keys:
-    - "ssl.cert[days_remaining,localhost:443]"
+    - "ssl.cert[days_remaining,{$SSL_TEST_HOST}]"

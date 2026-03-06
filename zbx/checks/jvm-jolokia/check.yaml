@@ -19,12 +19,17 @@ description: "JVM monitoring via Jolokia REST API (http://host:8778/jolokia)"
 groups:
   - Templates/Applications
 
+macros:
+  - macro: "{$JOLOKIA_PORT}"
+    value: "8778"
+    description: "Jolokia HTTP port"
+
 items:
   - name: JVM ping
     key: "jvm.jolokia[ping]"
     interval: 60s
     value_type: unsigned
-    description: "1 if Jolokia is reachable at http://localhost:8778/jolokia/, 0 otherwise"
+    description: "1 if Jolokia is reachable at http://{HOST.CONN}:{$JOLOKIA_PORT}/jolokia/, 0 otherwise"
     tags:
       - tag: component
         value: jvm

@@ -36,10 +36,22 @@ from pathlib import Path
 import requests
 from openai import OpenAI
 
+
+def _detect_repo() -> str:
+    """Infer owner/repo from git remote.origin.url (fallback for local runs)."""
+    import subprocess as _sp
+    try:
+        url = _sp.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
+        # handles https://github.com/owner/repo.git and git@github.com:owner/repo.git
+        url = url.removeprefix("https://github.com/").removeprefix("git@github.com:")
+        return url.removesuffix(".git")
+    except Exception:
+        raise RuntimeError("Cannot detect repo — set REPO env var (e.g. owner/repo)")
+
 # ─── config ──────────────────────────────────────────────────────────────────
 REPO_ROOT     = Path.cwd()
 GITHUB_TOKEN  = os.environ["GITHUB_TOKEN"]
-REPO          = os.environ.get("REPO", "psantana5/zbx")
+REPO          = os.environ.get("REPO") or _detect_repo()
 BUDGET_MIN    = int(os.environ.get("BUDGET_MINUTES", "90"))
 FOCUS         = os.environ.get("FOCUS", "auto").lower()
 MODEL         = "claude-3-5-sonnet"

@@ -457,8 +457,8 @@ class ScriptDeploy(BaseModel):
 
     source: str          # path relative to the repo root, e.g. scripts/getS3Storage.py
     dest: str            # absolute path on the remote host
-    owner: str = "zabbix"
-    group: str = "zabbix"
+    owner: str = "zabbix"   # OS user owning the script; override if your agent runs as a different user
+    group: str = "zabbix"   # OS group owning the script; override if needed
     mode: str = "0755"   # chmod-style octal string
 
 

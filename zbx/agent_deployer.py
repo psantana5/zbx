@@ -31,6 +31,10 @@ log = logging.getLogger(__name__)
 # IPs that mean "this machine" — skip SSH and run locally
 _LOCALHOST = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
 
+# SSH connection timeout in seconds; override with ZBX_SSH_TIMEOUT env var
+import os as _os
+_SSH_TIMEOUT = int(_os.environ.get("ZBX_SSH_TIMEOUT", "30"))
+
 
 def _is_localhost(ip: str) -> bool:
     return ip.lower() in _LOCALHOST
@@ -120,7 +124,7 @@ class AgentDeployer:
             ) from exc
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        kw: dict = dict(hostname=self.ip, port=self.ssh_port, username=self.ssh_user, timeout=30)
+        kw: dict = dict(hostname=self.ip, port=self.ssh_port, username=self.ssh_user, timeout=_SSH_TIMEOUT)
         if self.ssh_key:
             kw["key_filename"] = self.ssh_key
         log.debug("SSH connect → %s@%s:%d", self.ssh_user, self.ip, self.ssh_port)
