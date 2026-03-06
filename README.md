@@ -234,6 +234,14 @@ groups:
   - Templates
   - Templates/Linux
 
+macros:
+  - macro: "{$CPU.UTIL.CRIT}"
+    value: "90"
+    description: CPU utilization critical threshold (%)
+  - macro: "{$MEM.AVAIL.MIN}"
+    value: "512"
+    description: Minimum available memory in MB
+
 items:
   - name: CPU utilization
     key: system.cpu.util
@@ -750,6 +758,31 @@ Severities: `not_classified`, `information`, `warning`, `average`, `high`, `disa
 | `type` | enum | `zabbix_agent` | Same values as Item type |
 | `item_prototypes` | list[ItemPrototype] | `[]` | Item prototypes |
 | `trigger_prototypes` | list[TriggerPrototype] | `[]` | Trigger prototypes |
+
+### Template Macros
+
+Templates can define user macros that are created, updated and removed idempotently alongside the template itself. Template macros let hosts override thresholds per-host while keeping sane defaults in the template.
+
+```yaml
+template: linux-observability
+macros:
+  - macro: "{$CPU.UTIL.CRIT}"
+    value: "80"
+    description: CPU utilization critical threshold (%)
+  - macro: "{$MEM.AVAIL.MIN}"
+    value: "20"
+    description: Minimum available memory (%)
+  - macro: "{$DISK.UTIL.WARN}"
+    value: "85"
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `macro` | string | required | Macro name — must be `{$NAME}` format |
+| `value` | string | `""` | Default value |
+| `description` | string | `""` | Human-readable description |
+
+`zbx plan` and `zbx diff` detect macro value and description changes. `zbx export` exports macros back to YAML for full round-trip migration.
 
 ### Host (playbook)
 

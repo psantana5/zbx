@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.7.0] — 2026-03-06
+
+### Added
+- **Template-level user macros** (`macros:` block in template YAML). Macros are created, updated and removed idempotently via `usermacro.*` API — fully integrated across all commands:
+  - `zbx apply` — creates/updates/removes template macros alongside items, triggers and discovery rules.
+  - `zbx plan` / `zbx diff` — detect macro ADD, MODIFY (value or description change), and REMOVE.
+  - `zbx export` — exports macros back to YAML for full round-trip Git migration.
+- End-to-end tests for template macro lifecycle (`TestTemplateMacros` in `test_e2e.py`).
+- README: template macro YAML reference and example.
+
+---
+
 ## [0.6.1] — 2026-03-06
 
 ### Fixed

@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tests.conftest import minimal_template, rich_template, zabbix_required
+from tests.conftest import macro_template, minimal_template, rich_template, zabbix_required
 
 pytestmark = zabbix_required  # skip all tests if Zabbix is not reachable
 
@@ -489,3 +489,77 @@ class TestFullRestore:
 
         finally:
             os.unlink(export_path)
+
+
+# ===========================================================================
+# 6. TEMPLATE MACROS
+# ===========================================================================
+class TestTemplateMacros:
+    """End-to-end tests for template-level user macro support."""
+
+    def test_apply_creates_macros(self, tmp_yaml, unique_name, template_cleanup, client):
+        """Applying a template with macros should create them on Zabbix."""
+        template_cleanup(unique_name)
+        p = tmp_yaml(macro_template(unique_name))
+        run("apply", str(p))
+
+        tpl = client.find_templates(unique_name)
+        assert tpl, "template not found"
+        tid = tpl[0]["templateid"]
+        raw_macros = client._call("usermacro.get", {"hostids": [tid], "output": "extend"})
+        macro_names = {m["macro"] for m in raw_macros}
+        assert "{$CPU.UTIL.CRIT}" in macro_names, f"macro missing; got {macro_names}"
+        assert "{$MEM.AVAIL.MIN}" in macro_names, f"macro missing; got {macro_names}"
+
+    def test_plan_after_apply_shows_no_changes(self, tmp_yaml, unique_name, template_cleanup):
+        """After applying macros, plan should report no changes."""
+        template_cleanup(unique_name)
+        p = tmp_yaml(macro_template(unique_name))
+        run("apply", str(p))
+        r2 = run("plan", str(p))
+        assert "no changes" in r2.stdout.lower(), f"Expected no changes, got:\n{r2.stdout}"
+
+    def test_plan_detects_macro_value_change(self, tmp_yaml, unique_name, template_cleanup):
+        """Changing a macro value should show a MODIFY in plan output."""
+        template_cleanup(unique_name)
+        tmpl = macro_template(unique_name)
+        p = tmp_yaml(tmpl)
+        run("apply", str(p))
+
+        # Now change the value
+        tmpl["macros"][0]["value"] = "90"
+        p2 = tmp_yaml(tmpl, "updated.yaml")
+        r = run("plan", str(p2))
+        assert "modify" in r.stdout.lower() or "~" in r.stdout, (
+            f"Expected MODIFY for macro change, got:\n{r.stdout}"
+        )
+
+    def test_export_includes_macros(self, tmp_yaml, unique_name, template_cleanup):
+        """Exported YAML should contain the macros block."""
+        template_cleanup(unique_name)
+        p = tmp_yaml(macro_template(unique_name))
+        run("apply", str(p))
+
+        r = run("export", unique_name)
+        assert r.returncode == 0
+        exported = yaml.safe_load(r.stdout)
+        assert "macros" in exported, f"macros key missing from export:\n{r.stdout}"
+        macro_names = {m["macro"] for m in exported["macros"]}
+        assert "{$CPU.UTIL.CRIT}" in macro_names
+        assert "{$MEM.AVAIL.MIN}" in macro_names
+
+    def test_apply_removes_deleted_macro(self, tmp_yaml, unique_name, template_cleanup):
+        """Removing a macro from YAML and re-applying should delete it from Zabbix."""
+        template_cleanup(unique_name)
+        tmpl = macro_template(unique_name)
+        p = tmp_yaml(tmpl)
+        run("apply", str(p))
+
+        # Remove one macro
+        tmpl["macros"] = [tmpl["macros"][0]]  # keep only CPU one
+        p2 = tmp_yaml(tmpl, "reduced.yaml")
+        run("apply", str(p2))
+
+        # Verify plan shows no changes
+        r = run("plan", str(p2))
+        assert "no changes" in r.stdout.lower(), f"Expected no changes after removal, got:\n{r.stdout}"

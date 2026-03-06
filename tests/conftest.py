@@ -261,3 +261,35 @@ def rich_template(name: str) -> dict:
             },
         ],
     }
+
+
+def macro_template(name: str) -> dict:
+    """Template with user macros for testing macro create/update/delete lifecycle."""
+    return {
+        "template": name,
+        "name": f"E2E Macro {name}",
+        "description": "Template macro test",
+        "groups": ["Templates"],
+        "macros": [
+            {
+                "macro": "{$CPU.UTIL.CRIT}",
+                "value": "80",
+                "description": "CPU utilization critical threshold",
+            },
+            {
+                "macro": "{$MEM.AVAIL.MIN}",
+                "value": "20",
+                "description": "Minimum available memory %",
+            },
+        ],
+        "items": [
+            {
+                "name": "Agent ping",
+                "key": "agent.ping",
+                "interval": "60s",
+                "value_type": "unsigned",
+            }
+        ],
+        "triggers": [],
+        "discovery_rules": [],
+    }
