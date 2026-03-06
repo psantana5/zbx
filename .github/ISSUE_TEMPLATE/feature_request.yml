@@ -1,0 +1,56 @@
+name: 💡 Feature request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea? We'd love to hear it. The best features come from real operational pain points.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the operational pain point. "I always have to..." or "It's hard to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like zbxctl to solve this?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Other tools or manual workarounds you currently use.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area does this affect?
+      options:
+        - CLI commands (plan/apply/diff/validate)
+        - Zabbix API integration
+        - YAML schema / config format
+        - Bundled checks
+        - Export / import
+        - CI/CD integration
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you like to contribute this?
+      options:
+        - label: "Yes, I'm happy to open a PR for this"
+        - label: "I can help test it"

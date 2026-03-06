@@ -1,0 +1,65 @@
+name: 📦 New bundled check
+description: Request a new monitoring check to be bundled with zbxctl
+labels: ["new-check", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bundled checks are ready-to-use YAML templates that ship with zbxctl.
+        Currently bundled: PostgreSQL, Redis, Nginx, MySQL, Elasticsearch, RabbitMQ,
+        HAProxy, MongoDB, Apache HTTPD, JVM/Jolokia, Windows Agent and more.
+
+  - type: input
+    id: service
+    attributes:
+      label: Service / technology name
+      placeholder: "e.g. Kafka, Vault, Prometheus"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version(s) to support
+      placeholder: "e.g. 3.x, 4.x"
+    validations:
+      required: false
+
+  - type: textarea
+    id: items
+    attributes:
+      label: What should be monitored?
+      description: List the metrics, items, or thresholds you'd want to check.
+      placeholder: |
+        - Connection count
+        - Consumer lag
+        - Broker availability
+        - Partition leader elections per minute
+    validations:
+      required: true
+
+  - type: textarea
+    id: triggers
+    attributes:
+      label: What alert conditions matter?
+      placeholder: |
+        - Consumer lag > 10000 for 5m → WARNING
+        - Broker unreachable → DISASTER
+    validations:
+      required: false
+
+  - type: textarea
+    id: collection
+    attributes:
+      label: How should data be collected?
+      description: Zabbix agent key, HTTP item, external script, SNMP, etc.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Would you like to contribute this check?
+      options:
+        - label: "Yes, I'll write the check.yaml and open a PR"
+        - label: "I can help test it"

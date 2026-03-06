@@ -1,0 +1,68 @@
+---
+# zbxctl local development environment
+# Spins up Zabbix 7 + PostgreSQL so you can try zbxctl without a real server.
+#
+# Usage:
+#   docker compose up -d
+#   # Wait ~60 seconds for Zabbix to initialise
+#   export ZABBIX_URL=http://localhost:8080/zabbix
+#   export ZABBIX_USER=Admin
+#   export ZABBIX_PASSWORD=zabbix
+#   zbx validate configs/checks/postgresql/
+#   zbx plan     configs/checks/postgresql/
+#   zbx apply    configs/checks/postgresql/
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       zabbix
+      POSTGRES_USER:     zabbix
+      POSTGRES_PASSWORD: zabbix_secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zabbix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:7.0-alpine-latest
+    environment:
+      DB_SERVER_HOST:      postgres
+      POSTGRES_DB:         zabbix
+      POSTGRES_USER:       zabbix
+      POSTGRES_PASSWORD:   zabbix_secret
+      ZBX_STARTPOLLERS:    5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "10051:10051"
+    volumes:
+      - zabbix_data:/var/lib/zabbix
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:7.0-alpine-latest
+    environment:
+      ZBX_SERVER_HOST:   zabbix-server
+      DB_SERVER_HOST:    postgres
+      POSTGRES_DB:       zabbix
+      POSTGRES_USER:     zabbix
+      POSTGRES_PASSWORD: zabbix_secret
+      PHP_TZ:            Europe/Stockholm
+    depends_on:
+      - zabbix-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/zabbix/api_jsonrpc.php"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  zabbix_data:

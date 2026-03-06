@@ -1,7 +1,22 @@
-# zbx — Zabbix Configuration as Code
+# zbxctl — Zabbix Configuration as Code
 
-Manage Zabbix templates, items, triggers and discovery rules through YAML files
-and Git — the same mental model as Terraform or Ansible.
+[![PyPI](https://img.shields.io/pypi/v/zbxctl?color=blue)](https://pypi.org/project/zbxctl/)
+[![Python](https://img.shields.io/pypi/pyversions/zbxctl)](https://pypi.org/project/zbxctl/)
+[![Tests](https://github.com/psantana5/zbx/actions/workflows/tests.yml/badge.svg)](https://github.com/psantana5/zbx/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Zabbix](https://img.shields.io/badge/Zabbix-6.x%20%7C%207.x-red)](https://www.zabbix.com)
+
+> **Manage Zabbix templates, items, triggers and discovery rules through YAML files and Git — the same mental model as Terraform, Ansible or ArgoCD.**
+
+```bash
+pip install zbxctl
+```
+
+<!-- demo GIF — record with: asciinema rec demo.cast --command "bash docs/demo.sh" -->
+<!-- convert to GIF: pip install agg && agg demo.cast docs/demo.gif -->
+<!-- then replace this comment with: ![zbxctl demo](docs/demo.gif) -->
+
+---
 
 ```
 zbx plan      configs/          See what would change

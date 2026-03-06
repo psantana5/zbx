@@ -1,0 +1,32 @@
+name: ❓ Question / Support
+description: Ask a question about using zbxctl
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Not a bug, not a feature — just need help? Ask away.
+        For quick answers, also check the [README](../../blob/main/README.md).
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What have you tried?
+      description: Commands you ran, docs you read, errors you got.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: zbxctl version
+      placeholder: "zbx --version"
+    validations:
+      required: false
