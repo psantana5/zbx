@@ -14,7 +14,7 @@ pip install zbxctl
 
 <!-- demo GIF — record with: asciinema rec demo.cast --command "bash docs/demo.sh" -->
 <!-- convert to GIF: pip install agg && agg demo.cast docs/demo.gif -->
-<!-- then replace this comment with: ![zbxctl demo](docs/demo.gif) -->
+![zbxctl demo](docs/demo.gif)
 
 ---
 
