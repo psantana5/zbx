@@ -502,6 +502,7 @@ class TestTemplateMacros:
         template_cleanup(unique_name)
         p = tmp_yaml(macro_template(unique_name))
         run("apply", str(p), "--auto-approve")
+        tpl = client.find_templates(unique_name)
         assert tpl, "template not found"
         tid = tpl[0]["templateid"]
         raw_macros = client._call("usermacro.get", {"hostids": [tid], "output": "extend"})
