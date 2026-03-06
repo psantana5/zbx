@@ -189,6 +189,39 @@ Layer 2 — Monitored host agent config (scripts + UserParameters)
 
 ## Quick Start
 
+### 0. Initialise a new project
+
+Run the interactive setup wizard once to connect to your Zabbix server and
+scaffold the directory structure:
+
+```bash
+zbx init
+```
+
+```
+zbxctl — first-time setup
+Zabbix URL [http://localhost/zabbix]: http://zabbix.example.com/zabbix
+Username [Admin]:
+Password: ••••••••
+Verify SSL certificates? [Y/n]: y
+✔ Connected to Zabbix 7.4.7
+✔ Authentication successful
+✔ Written .env
+✔ Created configs/templates/   configs/hosts/   configs/checks/
+✔ Updated .gitignore (excluded .env)
+
+  All set! Next steps:
+    zbx plan configs/       # preview changes
+    zbx apply configs/      # apply to Zabbix
+    zbx check list          # browse bundled checks
+```
+
+For non-interactive environments (CI/CD), use `--yes` to accept all defaults:
+
+```bash
+ZBX_URL=http://zabbix.example.com/zabbix ZBX_USER=Admin ZBX_PASSWORD=secret zbx init --yes
+```
+
 ### 1. Define a template
 
 ```yaml
@@ -258,6 +291,33 @@ zbx apply configs/hosts/webserver01.yaml
 ---
 
 ## Commands
+
+### zbx init
+
+Interactive first-time setup wizard. Connects to your Zabbix server, writes `.env`,
+and creates the standard `configs/` directory structure.
+
+```bash
+zbx init                  # interactive prompts
+zbx init --yes            # non-interactive, reads from env vars
+```
+
+**What it does:**
+1. Prompts for Zabbix URL, username and password
+2. Tests the connection (`apiinfo.version`) and authenticates
+3. Writes `.env` with your connection details
+4. Creates `configs/templates/`, `configs/hosts/`, `configs/checks/`
+5. Adds `.env` to `.gitignore` so credentials are never committed
+
+**Environment variables read by `zbx init --yes`:**
+
+| Variable | Description |
+|----------|-------------|
+| `ZBX_URL` | Zabbix server URL |
+| `ZBX_USER` | Username (default: `Admin`) |
+| `ZBX_PASSWORD` | Password |
+| `ZBX_VERIFY_SSL` | Verify TLS certificates (`true`/`false`, default: `true`) |
+| `ZBX_INIT_TIMEOUT` | Connection test timeout in seconds (default: `10`) |
 
 ### zbx plan
 
