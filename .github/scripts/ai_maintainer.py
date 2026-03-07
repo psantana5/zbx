@@ -45,7 +45,7 @@ client = OpenAI(
     api_key=GITHUB_TOKEN,
 )
 
-MODEL = "claude-3-5-sonnet"  # Claude via GitHub Models / Copilot
+MODEL = "gpt-4o"  # GPT-4o via GitHub Models
 
 # ---------------------------------------------------------------------------
 # Tools exposed to the model

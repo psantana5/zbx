@@ -54,7 +54,7 @@ GITHUB_TOKEN  = os.environ["GITHUB_TOKEN"]
 REPO          = os.environ.get("REPO") or _detect_repo()
 BUDGET_MIN    = int(os.environ.get("BUDGET_MINUTES", "90"))
 FOCUS         = os.environ.get("FOCUS", "auto").lower()
-MODEL         = "claude-3-5-sonnet"
+MODEL         = "gpt-4o"
 MAX_ROUNDS    = 25          # agentic loop cap per task
 
 client = OpenAI(base_url="https://models.inference.ai.azure.com", api_key=GITHUB_TOKEN)
