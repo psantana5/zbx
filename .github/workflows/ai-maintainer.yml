@@ -21,6 +21,7 @@ permissions:
   contents: write       # create branches + commits
   pull-requests: write  # open PRs
   issues: write         # post comments
+  models: read          # GitHub Models API
 
 jobs:
   ai-fix:
