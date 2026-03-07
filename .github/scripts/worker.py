@@ -54,8 +54,8 @@ GITHUB_TOKEN  = os.environ["GITHUB_TOKEN"]
 REPO          = os.environ.get("REPO") or _detect_repo()
 BUDGET_MIN    = int(os.environ.get("BUDGET_MINUTES", "90"))
 FOCUS         = os.environ.get("FOCUS", "auto").lower()
-MODEL         = "gpt-4o"
-MAX_ROUNDS    = 25          # agentic loop cap per task
+MODEL         = "gpt-4o-mini"  # 2000 req/day on GitHub Models free tier; gpt-4o is only 50/day
+MAX_ROUNDS    = 12          # agentic loop cap per task
 
 client = OpenAI(base_url="https://models.inference.ai.azure.com", api_key=GITHUB_TOKEN)
 GH_HEADERS = {
@@ -216,7 +216,7 @@ def dispatch(name: str, args: dict) -> str:
         if not p.exists():
             return f"ERROR: {args['path']} does not exist"
         content = p.read_text(errors="replace")
-        return content[:12_000] + ("\n... (truncated)" if len(content) > 12_000 else "")
+        return content[:3_000] + ("\n... (truncated)" if len(content) > 3_000 else "")
 
     if name == "list_files":
         p = REPO_ROOT / args["directory"]
@@ -267,16 +267,20 @@ Rules:
 
 def run_task(description: str) -> tuple[bool, str]:
     """Run agentic loop for one task. Returns (files_changed, summary)."""
-    messages = [
-        {"role": "system", "content": SYSTEM},
-        {"role": "user",   "content": f"Task:\n\n{description}"},
-    ]
+    system_msg = {"role": "system", "content": SYSTEM}
+    first_msg  = {"role": "user",   "content": f"Task:\n\n{description}"}
+    messages = [system_msg, first_msg]
     files_changed = False
 
     for _ in range(MAX_ROUNDS):
+        # Rolling window: keep system + first user msg + last 6 messages
+        # to stay well within the 8000-token limit of the free tier.
+        if len(messages) > 8:
+            messages = [system_msg, first_msg] + messages[-6:]
+
         resp = client.chat.completions.create(
             model=MODEL, messages=messages, tools=TOOLS,
-            tool_choice="auto", temperature=0.2, max_tokens=4096,
+            tool_choice="auto", temperature=0.2, max_tokens=1500,
         )
         msg = resp.choices[0].message
         messages.append(msg)

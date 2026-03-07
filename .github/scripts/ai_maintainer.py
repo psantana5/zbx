@@ -45,7 +45,7 @@ client = OpenAI(
     api_key=GITHUB_TOKEN,
 )
 
-MODEL = "gpt-4o"  # GPT-4o via GitHub Models
+MODEL = "gpt-4o-mini"  # 2000 req/day on GitHub Models free tier; gpt-4o is only 50/day
 
 # ---------------------------------------------------------------------------
 # Tools exposed to the model
@@ -229,7 +229,7 @@ def tool_read_file(path: str) -> str:
         content = p.read_text()
         # Truncate very large files to avoid blowing up context
         if len(content) > 8000:
-            content = content[:8000] + f"\n... (truncated, {len(content)} bytes total)"
+            content = content[:3000] + f"\n... (truncated, {len(content)} bytes total)"
         return content
     except FileNotFoundError:
         return f"ERROR: file not found: {path}"
@@ -523,6 +523,7 @@ def run() -> dict:
             tools=TOOLS,
             tool_choice="auto",
             temperature=0.1,
+            max_tokens=1500,
         )
 
         msg = response.choices[0].message
