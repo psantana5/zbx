@@ -5,12 +5,14 @@ Commands:
     zbx check info <name>       Show template details for a check
     zbx check install <name>    Copy check to configs/checks/ then apply to Zabbix
     zbx check update [name]     Update installed check(s) from bundled package version
+    zbx check verify <name>     Run the check script locally with --test flag
 """
 
 from __future__ import annotations
 
 import importlib.resources
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -88,6 +90,48 @@ def _resolve_bundled(name: str) -> Path:
         rprint("  Use the exact name shown in [bold]zbx check list[/bold].")
         raise typer.Exit(1)
     return candidates[0]
+
+
+# ---------------------------------------------------------------------------
+# zbx check verify <name>
+# ---------------------------------------------------------------------------
+
+@app.command("verify")
+def check_verify(
+    name: Annotated[str, typer.Argument(help="Check name (exact or partial).")],
+) -> None:
+    """Run the check script locally with --test flag."""
+    folder = _resolve_bundled(name)
+    scripts_dir = folder / "scripts"
+
+    if not scripts_dir.exists():
+        rprint(f"[red]✗[/red] No scripts directory found for check '{name}'.")
+        raise typer.Exit(1)
+
+    test_script = None
+    for script in scripts_dir.iterdir():
+        if script.is_file() and script.suffix in {".sh", ".py"}:
+            test_script = script
+            break
+
+    if not test_script:
+        rprint(f"[red]✗[/red] No executable script found for check '{name}'.")
+        raise typer.Exit(1)
+
+    try:
+        result = subprocess.run(
+            ["bash", str(test_script), "--test"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        rprint(f"[green]✓[/green] Check '{name}' passed:\n{result.stdout}")
+    except subprocess.CalledProcessError as e:
+        rprint(f"[red]✗[/red] Check '{name}' failed:\n{e.stderr}")
+        raise typer.Exit(1)
+    except FileNotFoundError:
+        rprint(f"[red]✗[/red] Script '{test_script}' not found or not executable.")
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +314,6 @@ def check_install(
         pass
 
 
-
 # ---------------------------------------------------------------------------
 # zbx check update
 # ---------------------------------------------------------------------------
@@ -316,59 +359,4 @@ def check_update(
                 rprint(f"[dim]  skip {inst.name} — no bundled version found[/dim]")
 
     if not targets:
-        rprint("[yellow]![/yellow] Nothing to update.")
-        raise typer.Exit(0)
-
-    console.print()
-    total_updated = 0
-
-    for bundled_src, target in targets:
-        if not target.exists():
-            rprint(f"[yellow]  {target.name}[/yellow]  not installed — skipping (use [bold]zbx check install {target.name}[/bold])")
-            continue
-
-        # Compare files
-        changed: list[tuple[str, str]] = []  # (filename, status)
-        for src_file in sorted(bundled_src.rglob("*")):
-            if src_file.is_dir():
-                continue
-            rel = src_file.relative_to(bundled_src)
-            dst_file = target / rel
-            if not dst_file.exists():
-                changed.append((str(rel), "new"))
-            elif not filecmp.cmp(src_file, dst_file, shallow=False):
-                changed.append((str(rel), "changed"))
-
-        if not changed:
-            console.print(f"[green]✓[/green]  [bold]{target.name}[/bold]  already up to date")
-            continue
-
-        console.print(f"[bold]{target.name}[/bold]")
-        for fname, status in changed:
-            colour = "cyan" if status == "new" else "yellow"
-            symbol = "+" if status == "new" else "~"
-            console.print(f"  [{colour}]{symbol}[/{colour}]  {fname}  [dim]({status})[/dim]")
-
-        if dry_run:
-            console.print(f"  [dim](dry-run — no files written)[/dim]")
-            continue
-
-        # Overwrite with bundled version (preserve any extra user files)
-        for src_file in bundled_src.rglob("*"):
-            if src_file.is_dir():
-                continue
-            rel = src_file.relative_to(bundled_src)
-            dst_file = target / rel
-            dst_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_file, dst_file)
-
-        console.print(f"  [green]✓[/green]  Updated {len(changed)} file(s)")
-        total_updated += 1
-
-    console.print()
-    if dry_run:
-        rprint("[dim]Dry-run complete. Run without --dry-run to apply changes.[/dim]")
-    elif total_updated:
-        rprint(f"[green]✓[/green] Updated [bold]{total_updated}[/bold] check(s). Run [bold]zbx apply configs/checks/[/bold] to push to Zabbix.")
-    else:
-        rprint("[green]✓[/green] All checks are already up to date.")
+        rprint("[yellow]![/yellow] Not

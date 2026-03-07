@@ -165,7 +165,12 @@ class ConfigLoader:
             with path.open() as fh:
                 docs = list(yaml.safe_load_all(fh))
         except yaml.YAMLError as exc:
-            raise ValueError(f"Invalid YAML in {path}: {exc}") from exc
+            error_line = getattr(exc, 'problem_mark', None)
+            if error_line:
+                line_info = f"line {error_line.line + 1}, column {error_line.column + 1}"
+            else:
+                line_info = "unknown location"
+            raise ValueError(f"Invalid YAML in {path} at {line_info}: {exc}") from exc
 
         # Filter out empty documents (e.g. trailing ---)
         docs = [d for d in docs if d is not None]
